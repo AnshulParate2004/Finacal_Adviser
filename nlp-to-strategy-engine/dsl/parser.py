@@ -3,48 +3,90 @@ from typing import Optional, Dict, Any, List, Union
 from lark import Lark, Transformer, Token
 from pathlib import Path
 import re
-from .ast_nodes import (
-    ASTNode, Series, Number, Indicator, TimeReference, 
-    Comparison, BooleanOp, Strategy, ASTBuilder
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from dsl.ast_nodes import (
+    ASTNode, Strategy, Series, Number, Indicator, TimeReference, 
+    Comparison, BooleanOp, ASTBuilder
 )
 
 
 class DSLTransformer(Transformer):
+    def start(self, items):
+        """Transform start rule - unwrap strategy"""
+        return items[0]
+    
     def strategy(self, items):
-        entry = items[0]
-        exit_rule = items[1] if len(items) > 1 else None
+        """Transform strategy rule"""
+        # items will be [rule_block1] or [rule_block1, rule_block2]
+        # Filter out tokens (ENTRY, EXIT keywords)
+        rule_blocks = [item for item in items if not isinstance(item, Token)]
+        
+        if len(rule_blocks) < 1:
+            raise ValueError("Strategy requires at least ENTRY block")
+        
+        entry = rule_blocks[0]
+        exit_rule = rule_blocks[1] if len(rule_blocks) > 1 else None
         return ASTBuilder.build_strategy(entry, exit_rule)
     
     def rule_block(self, items):
+        """Pass through rule block"""
+        return items[0]
+    
+    def or_rule(self, items):
+        """Handle OR rule"""
+        if len(items) == 1:
+            return items[0]
+        # Should not reach here - bool_op handles it
+        return items[0]
+    
+    def and_rule(self, items):
+        """Handle AND rule"""
+        if len(items) == 1:
+            return items[0]
+        # Should not reach here - bool_op handles it
         return items[0]
     
     def bool_op(self, items):
+        """Handle AND/OR operators"""
         left = items[0]
         operator = items[1].value.upper()
         right = items[2]
         return ASTBuilder.build_boolean_op(operator, left, right)
     
+    def expr(self, items):
+        """Pass through expr wrapper"""
+        return items[0]
+    
     def comparison(self, items):
+        """Transform comparison: expr op expr"""
         left = items[0]
         operator = items[1]
         right = items[2]
         return ASTBuilder.build_comparison(operator, left, right)
     
     def comparison_op(self, items):
+        """Extract comparison operator"""
         token = items[0]
         return token.value if isinstance(token, Token) else str(token)
     
     def series(self, items):
+        """Transform series reference"""
         name = items[0].value
         return ASTBuilder.build_series(name)
     
     def indicator(self, items):
-        # Case-insensitive handling of indicator name
+        """Transform indicator call"""
         name = items[0].value.lower()
         params = items[1]
         return ASTBuilder.build_indicator(name, params)
     
     def indicator_params(self, items):
+        """Extract indicator parameters"""
         params = []
         for item in items:
             if isinstance(item, Token):
@@ -56,12 +98,13 @@ class DSLTransformer(Transformer):
         return params
     
     def time_ref(self, items):
+        """Transform time reference"""
         series = items[0].value
         lag = items[1].value if isinstance(items[1], Token) else items[1]
         return ASTBuilder.build_time_ref(series, lag)
     
     def number(self, items):
-        """Parse NUMBER_SCALED token and apply scale multipliers"""
+        """Parse NUMBER_SCALED and apply scale"""
         token = items[0]
         numeric_str = token.value
         
@@ -106,8 +149,13 @@ class DSLParser:
         """Parse DSL text to Strategy AST"""
         try:
             ast = self.parser.parse(dsl_text)
+            
+            # Check if it's a Strategy
             if not isinstance(ast, Strategy):
-                raise ValueError("Parsed result is not a Strategy")
+                print(f"DEBUG: Parsed type: {type(ast).__name__}")
+                print(f"DEBUG: Parsed value: {ast}")
+                raise ValueError(f"Expected Strategy, got {type(ast).__name__}")
+            
             return ast
         except Exception as e:
             raise Exception(f"DSL Parse Error: {str(e)}")

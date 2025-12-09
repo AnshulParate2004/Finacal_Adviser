@@ -1,44 +1,44 @@
-// Trading Strategy DSL Grammar (Lark format)
+// Trading Strategy DSL Grammar (Lark format) - Fixed
 start: strategy
 
 strategy: ENTRY ":" rule_block (EXIT ":" rule_block)?
 
-rule_block: or_expr
+rule_block: or_rule
 
-?or_expr: and_expr
-        | or_expr OR and_expr -> bool_op
+or_rule: and_rule
+       | or_rule OR and_rule -> bool_op
 
-?and_expr: comparison
-         | and_expr AND comparison -> bool_op
+and_rule: comparison
+        | and_rule AND comparison -> bool_op
 
-?comparison: expr comparison_op expr
+comparison: expr comparison_op expr
 
-?expr: series
-     | indicator
-     | time_ref
-     | number
-     | "(" or_expr ")"
+expr: series
+    | indicator
+    | time_ref
+    | number
+    | "(" or_rule ")"
 
-series: SERIES_NAME
+series: SERIES_LITERAL
 
 indicator: INDICATOR_NAME "(" indicator_params ")"
 
-indicator_params: SERIES_NAME "," number
-                | SERIES_NAME "," number "," number
-                | SERIES_NAME "," number "," number "," number
+indicator_params: SERIES_LITERAL "," number
+                | SERIES_LITERAL "," number "," number
+                | SERIES_LITERAL "," number "," number "," number
 
-time_ref: SERIES_NAME "_" TIME_LAG
-        | SERIES_NAME "[" number "]"
+time_ref: SERIES_LITERAL "_" TIME_LAG
+        | SERIES_LITERAL "[" number "]"
 
 number: NUMBER_SCALED
 
 comparison_op: GT | LT | GTE | LTE | EQ | NEQ
              | CROSSES_ABOVE | CROSSES_BELOW | CROSSES | TOUCHES
 
-// Terminals - Fixed version
-SERIES_NAME: "close" | "open" | "high" | "low" | "volume" | /[a-zA-Z_][a-zA-Z0-9_]*/
-
+// Terminals
 INDICATOR_NAME: /sma|ema|rsi|macd|macd_signal|macd_histogram|bb_upper|bb_middle|bb_lower|atr|adx|stoch|stoch_d/i
+
+SERIES_LITERAL: "close" | "open" | "high" | "low" | "volume"
 
 TIME_LAG: ("prev" | /\d+[dwm]_ago/)
 
