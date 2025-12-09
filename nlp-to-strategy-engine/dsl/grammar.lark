@@ -30,21 +30,19 @@ indicator_params: SERIES_NAME "," number
 time_ref: SERIES_NAME "_" TIME_LAG
         | SERIES_NAME "[" number "]"
 
-number: SIGNED_NUMBER
-      | SIGNED_NUMBER SCALE
+number: NUMBER_SCALED
 
 comparison_op: GT | LT | GTE | LTE | EQ | NEQ
              | CROSSES_ABOVE | CROSSES_BELOW | CROSSES | TOUCHES
 
-SERIES_NAME: ("close" | "open" | "high" | "low" | "volume" | "_" /[a-zA-Z0-9_]+/)
+// Terminals - Fixed version
+SERIES_NAME: "close" | "open" | "high" | "low" | "volume" | /[a-zA-Z_][a-zA-Z0-9_]*/
 
-INDICATOR_NAME: ("sma" | "ema" | "rsi" | "macd" | "macd_signal" | "macd_histogram"
-              | "bb_upper" | "bb_middle" | "bb_lower"
-              | "atr" | "adx" | "stoch" | "stoch_d")i
+INDICATOR_NAME: /sma|ema|rsi|macd|macd_signal|macd_histogram|bb_upper|bb_middle|bb_lower|atr|adx|stoch|stoch_d/i
 
 TIME_LAG: ("prev" | /\d+[dwm]_ago/)
 
-SCALE: ("K" | "M" | "B")i
+NUMBER_SCALED: /-?\d+(\.\d+)?[KkMmBb]?/
 
 GT: ">"
 LT: "<"
@@ -61,8 +59,6 @@ ENTRY: "ENTRY"i
 EXIT: "EXIT"i
 AND: "AND"i
 OR: "OR"i
-
-SIGNED_NUMBER: ["-"]( /\d+\.\d+/ | /\d+/)
 
 %import common.WS
 %ignore WS
