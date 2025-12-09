@@ -1,4 +1,4 @@
-"""Code Generator - Converts DSL AST to Python trading functions"""
+"""Code Generator - Converts DSL AST to Python trading functions cn also be done using talib"""
 from typing import Callable, Dict, Any, List, Optional, Tuple
 import pandas as pd
 import numpy as np

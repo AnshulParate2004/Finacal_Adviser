@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-12-10T04:47:24.882436",
+  "initial_capital": 10000.0,
+  "data_period": {
+    "start": "2022-12-01",
+    "end": "2023-03-10",
+    "bars": 99
+  },
+  "backtest_results": {
+    "total_trades": 2,
+    "winning_trades": 1,
+    "losing_trades": 1,
+    "win_rate": 50.0,
+    "total_profit": 47.0,
+    "total_return_pct": 0.47000000000000003,
+    "avg_trade_return": 20.43424317617866,
+    "max_profit": 85.0,
+    "max_loss": -38.0,
+    "max_drawdown": 0.38,
+    "sharpe_ratio": 7.213679218998649,
+    "trades": [
+      {
+        "entry_date": "2022-12-20 00:00:00",
+        "entry_price": 155.0,
+        "exit_date": "2023-01-07 00:00:00",
+        "exit_price": 117.0,
+        "quantity": 1.0,
+        "profit": -38.0,
+        "return_pct": -24.516129032258064
+      },
+      {
+        "entry_date": "2023-01-17 00:00:00",
+        "entry_price": 130.0,
+        "exit_date": "2023-03-10 00:00:00",
+        "exit_price": 215.0,
+        "quantity": 1.0,
+        "profit": 85.0,
+        "return_pct": 65.38461538461539
+      }
+    ]
+  }
+}
