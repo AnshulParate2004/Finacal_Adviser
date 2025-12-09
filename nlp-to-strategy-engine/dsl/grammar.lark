@@ -1,0 +1,68 @@
+// Trading Strategy DSL Grammar (Lark format)
+start: strategy
+
+strategy: ENTRY ":" rule_block (EXIT ":" rule_block)?
+
+rule_block: or_expr
+
+?or_expr: and_expr
+        | or_expr OR and_expr -> bool_op
+
+?and_expr: comparison
+         | and_expr AND comparison -> bool_op
+
+?comparison: expr comparison_op expr
+
+?expr: series
+     | indicator
+     | time_ref
+     | number
+     | "(" or_expr ")"
+
+series: SERIES_NAME
+
+indicator: INDICATOR_NAME "(" indicator_params ")"
+
+indicator_params: SERIES_NAME "," number
+                | SERIES_NAME "," number "," number
+                | SERIES_NAME "," number "," number "," number
+
+time_ref: SERIES_NAME "_" TIME_LAG
+        | SERIES_NAME "[" number "]"
+
+number: SIGNED_NUMBER
+      | SIGNED_NUMBER SCALE
+
+comparison_op: GT | LT | GTE | LTE | EQ | NEQ
+             | CROSSES_ABOVE | CROSSES_BELOW | CROSSES | TOUCHES
+
+SERIES_NAME: ("close" | "open" | "high" | "low" | "volume" | "_" /[a-zA-Z0-9_]+/)
+
+INDICATOR_NAME: ("sma" | "ema" | "rsi" | "macd" | "macd_signal" | "macd_histogram"
+              | "bb_upper" | "bb_middle" | "bb_lower"
+              | "atr" | "adx" | "stoch" | "stoch_d")i
+
+TIME_LAG: ("prev" | /\d+[dwm]_ago/)
+
+SCALE: ("K" | "M" | "B")i
+
+GT: ">"
+LT: "<"
+GTE: ">="
+LTE: "<="
+EQ: "=="
+NEQ: "!="
+CROSSES_ABOVE: "crosses_above"i
+CROSSES_BELOW: "crosses_below"i
+CROSSES: "crosses"i
+TOUCHES: "touches"i
+
+ENTRY: "ENTRY"i
+EXIT: "EXIT"i
+AND: "AND"i
+OR: "OR"i
+
+SIGNED_NUMBER: ["-"]( /\d+\.\d+/ | /\d+/)
+
+%import common.WS
+%ignore WS
