@@ -1,0 +1,52 @@
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.pkl
+*.egg-info/
+*.egg
+*.log
+
+# ---- Virtual Environment ----
+venv/
+env/
+.nox/
+.venv/
+.env/
+.env
+
+# ---- IDE / Editor ----
+.vscode/
+.idea/
+
+# ---- OS Files ----
+.DS_Store
+Thumbs.db
+
+# ---- Build & Packaging ----
+build/
+dist/
+pip-wheel-metadata/
+.eggs/
+
+# ---- Cache ----
+.cache/
+.mypy_cache/
+.pytest_cache/
+.hypothesis/
+
+# ---- Environment / Secrets ----
+.env
+.env.*
+*.secret
+*.key
+
+# ---- Jupyter Notebooks ----
+.ipynb_checkpoints/
+
+# ---- Project specific ----
+# If you create any local generated files, add them here:
+local_data/
+tmp/
