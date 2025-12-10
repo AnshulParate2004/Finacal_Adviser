@@ -1,20 +1,18 @@
 """
 FastAPI Application for NLP-to-Strategy Trading Engine
-Provides REST API endpoints for the complete trading strategy pipeline
+Single-endpoint API for complete trading strategy pipeline
 """
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
+from typing import Optional
 import pandas as pd
-import io
-import json
 from datetime import datetime
 from pathlib import Path
 
 # Import our modules
-from nlp_parser import parse_trading_rule, check_completeness
+from nlp_parser import parse_trading_rule
 from dsl import DSLParser, validate_dsl
 from codegen import generate_trading_function
 from backtester import BacktestEngine
@@ -35,71 +33,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# ============================================================================
-# Request/Response Models
-# ============================================================================
-
-class NLPParseRequest(BaseModel):
-    """Request model for NLP parsing"""
-    text: str = Field(..., description="Natural language trading rule")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "text": "Buy when close crosses above 20-day SMA. Sell when RSI drops below 30."
-            }
-        }
-
-
-class CompletenessCheckRequest(BaseModel):
-    """Request model for completeness check"""
-    text: str = Field(..., description="Trading rule text to check")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "text": "Buy when close is above"
-            }
-        }
-
-
-class BacktestRequest(BaseModel):
-    """Request model for backtesting"""
-    rule_json: Dict[str, Any] = Field(..., description="Trading rule in JSON format")
-    initial_capital: float = Field(10000.0, description="Initial capital for backtest")
-    position_size: float = Field(1.0, description="Position size (1.0 = full capital)")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "rule_json": {
-                    "entry": [
-                        {"left": "close", "operator": ">", "right": "sma(close,20)"}
-                    ],
-                    "exit": [
-                        {"left": "rsi(close,14)", "operator": "<", "right": 30}
-                    ]
-                },
-                "initial_capital": 10000.0,
-                "position_size": 1.0
-            }
-        }
-
-
-class EndToEndRequest(BaseModel):
-    """Request model for end-to-end pipeline"""
-    text: str = Field(..., description="Natural language trading rule")
-    initial_capital: Optional[float] = Field(10000.0, description="Initial capital (default: 10000)")
-    position_size: Optional[float] = Field(1.0, description="Position size (default: 1.0)")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "text": "Buy when RSI is above 70. Sell when RSI drops below 30."
-            }
-        }
 
 
 # ============================================================================
@@ -124,40 +57,47 @@ def load_sample_data() -> pd.DataFrame:
     return data
 
 
-def dataframe_from_upload(file_content: bytes) -> pd.DataFrame:
-    """Convert uploaded CSV to DataFrame"""
-    df = pd.read_csv(io.BytesIO(file_content), index_col='date', parse_dates=True)
-    
-    # Convert to float64
-    numeric_columns = ['open', 'high', 'low', 'close', 'volume']
-    for col in numeric_columns:
-        if col in df.columns:
-            df[col] = df[col].astype('float64')
-    
-    return df
-
-
 # ============================================================================
 # API Endpoints
 # ============================================================================
 
 @app.get("/")
 async def root():
-    """API information"""
+    """API information and documentation"""
     return {
         "name": "NLP-to-Strategy Trading Engine API",
         "version": "1.0.0",
-        "description": "Convert natural language trading rules to executable strategies",
+        "description": "Convert natural language trading rules to executable strategies and backtest them",
+        "documentation": "http://localhost:8000/docs",
         "endpoints": {
-            "health": "/health",
-            "nlp_parse": "/api/nlp/parse",
-            "completeness_check": "/api/nlp/check-completeness",
-            "validate_rule": "/api/dsl/validate",
-            "generate_signals": "/api/signals/generate",
-            "backtest": "/api/backtest/run",
-            "end_to_end": "/api/pipeline/end-to-end",
-            "upload_backtest": "/api/backtest/upload"
-        }
+            "health": {
+                "path": "/health",
+                "method": "GET",
+                "description": "Health check endpoint"
+            },
+            "strategy": {
+                "path": "/api/strategy",
+                "method": "POST",
+                "description": "Main endpoint - Complete NL to backtest pipeline",
+                "parameters": {
+                    "text": "Natural language trading rule (required)",
+                    "initial_capital": "Starting capital in dollars (optional, default: 10000)",
+                    "position_size": "Position size multiplier (optional, default: 1.0)"
+                },
+                "example_curl": 'curl -X POST "http://localhost:8000/api/strategy" -F "text=Buy when RSI is above 70. Sell when RSI drops below 30."',
+                "example_python": '''import requests
+response = requests.post(
+    "http://localhost:8000/api/strategy",
+    data={"text": "Buy when RSI is above 70. Sell when RSI drops below 30."}
+)
+print(response.json())'''
+            }
+        },
+        "example_rules": [
+            "Buy when close crosses above 20-day SMA. Sell when close crosses below 20-day SMA.",
+            "Buy when RSI is above 70 and volume is above 1 million. Sell when RSI drops below 30.",
+            "Enter when close is below lower Bollinger Band. Exit when close crosses above upper Bollinger Band."
+        ]
     }
 
 
@@ -167,324 +107,180 @@ async def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "service": "nlp-to-strategy-engine"
+        "service": "nlp-to-strategy-engine",
+        "version": "1.0.0"
     }
-
-
-@app.post("/api/nlp/parse")
-async def nlp_parse(request: NLPParseRequest):
-    """
-    Parse natural language trading rule into structured JSON
-    
-    **Flow:**
-    1. Check if rule is complete
-    2. Parse into structured format
-    3. Return JSON rule with metadata
-    """
-    try:
-        parsed_strategy = parse_trading_rule(request.text)
-        
-        return {
-            "success": True,
-            "data": {
-                "rule": parsed_strategy.rule.dict(),
-                "original_text": parsed_strategy.original_text,
-                "indicators_used": parsed_strategy.indicators_used,
-                "complexity": parsed_strategy.complexity
-            }
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Parsing error: {str(e)}")
-
-
-@app.post("/api/nlp/check-completeness")
-async def completeness_check(request: CompletenessCheckRequest):
-    """
-    Check if trading rule text is complete
-    
-    **Returns:**
-    - is_complete: Boolean
-    - missing_elements: List of missing components
-    - suggestion: Helpful suggestion to complete the rule
-    """
-    try:
-        is_complete, response, used_llm = check_completeness(request.text)
-        
-        return {
-            "success": True,
-            "data": {
-                "is_complete": is_complete,
-                "status": response.status,
-                "missing_elements": response.missing_elements,
-                "confidence": response.confidence,
-                "suggestion": response.suggestion,
-                "used_llm": used_llm
-            }
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Completeness check error: {str(e)}")
-
-
-@app.post("/api/dsl/validate")
-async def validate_rule(rule_json: Dict[str, Any]):
-    """
-    Validate trading rule JSON structure
-    
-    **Checks:**
-    - Correct JSON format
-    - Valid operators
-    - Valid indicators
-    - Complete conditions
-    """
-    try:
-        # Parse to AST
-        ast = DSLParser.from_json_rule(rule_json)
-        
-        # Validate
-        is_valid, errors, warnings = validate_dsl(ast)
-        
-        return {
-            "success": True,
-            "data": {
-                "is_valid": is_valid,
-                "errors": errors,
-                "warnings": warnings
-            }
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
-
-
-@app.post("/api/signals/generate")
-async def generate_signals(rule_json: Dict[str, Any]):
-    """
-    Generate trading signals from rule (using sample data)
-    
-    **Returns:**
-    - Entry signals count
-    - Exit signals count
-    - Signal dates
-    """
-    try:
-        # Load sample data
-        data = load_sample_data()
-        
-        # Parse to AST
-        ast = DSLParser.from_json_rule(rule_json)
-        
-        # Validate
-        is_valid, errors, warnings = validate_dsl(ast)
-        if not is_valid:
-            raise HTTPException(status_code=400, detail=f"Invalid rule: {errors}")
-        
-        # Generate signals
-        trading_func = generate_trading_function(ast)
-        signals = trading_func(data)
-        
-        # Extract signal dates
-        entry_dates = data.index[signals['entry']].strftime('%Y-%m-%d').tolist()
-        exit_dates = data.index[signals['exit']].strftime('%Y-%m-%d').tolist()
-        
-        return {
-            "success": True,
-            "data": {
-                "entry_signals": int(signals['entry'].sum()),
-                "exit_signals": int(signals['exit'].sum()),
-                "entry_dates": entry_dates,
-                "exit_dates": exit_dates,
-                "data_period": {
-                    "start": str(data.index[0].date()),
-                    "end": str(data.index[-1].date()),
-                    "bars": len(data)
-                }
-            }
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Signal generation error: {str(e)}")
-
-
-@app.post("/api/backtest/run")
-async def run_backtest(request: BacktestRequest):
-    """
-    Run backtest simulation with sample data
-    
-    **Returns:**
-    - Complete backtest results
-    - Performance metrics
-    - Trade history
-    """
-    try:
-        # Load sample data
-        data = load_sample_data()
-        
-        # Parse to AST
-        ast = DSLParser.from_json_rule(request.rule_json)
-        
-        # Validate
-        is_valid, errors, warnings = validate_dsl(ast)
-        if not is_valid:
-            raise HTTPException(status_code=400, detail=f"Invalid rule: {errors}")
-        
-        # Run backtest
-        engine = BacktestEngine(
-            initial_capital=request.initial_capital,
-            position_size=request.position_size
-        )
-        result = engine.run(data, ast)
-        
-        return {
-            "success": True,
-            "data": {
-                "backtest_results": result.to_dict(),
-                "initial_capital": request.initial_capital,
-                "position_size": request.position_size,
-                "data_period": {
-                    "start": str(data.index[0].date()),
-                    "end": str(data.index[-1].date()),
-                    "bars": len(data)
-                }
-            }
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Backtest error: {str(e)}")
 
 
 @app.post("/api/strategy")
-async def simple_strategy(text: str = Form(..., description="Natural language trading rule")):
+async def execute_strategy(
+    text: str = Form(..., description="Natural language trading rule"),
+    initial_capital: Optional[float] = Form(10000.0, description="Initial capital (default: 10000)"),
+    position_size: Optional[float] = Form(1.0, description="Position size (default: 1.0)")
+):
     """
-    **SIMPLEST ENDPOINT** - Just send plain text!
-    
-    **Usage (Form Data):**
-    ```bash
-    curl -X POST "http://localhost:8000/api/strategy" \
-      -F "text=Buy when RSI is above 70. Sell when RSI drops below 30."
-    ```
-    
-    **Usage (Python):**
-    ```python
-    import requests
-    response = requests.post(
-        "http://localhost:8000/api/strategy",
-        data={"text": "Buy when RSI is above 70. Sell when RSI drops below 30."}
-    )
-    ```
-    
-    Returns complete backtest results with default settings (capital=10000, position=1.0)
-    """
-    try:
-        # Parse NL
-        parsed_strategy = parse_trading_rule(text)
-        
-        # Convert to AST and validate
-        ast = DSLParser.from_json_rule(parsed_strategy.rule.dict())
-        is_valid, errors, warnings = validate_dsl(ast)
-        
-        if not is_valid:
-            raise HTTPException(status_code=400, detail=f"Invalid rule: {errors}")
-        
-        # Load data and generate signals
-        data = load_sample_data()
-        trading_func = generate_trading_function(ast)
-        signals = trading_func(data)
-        
-        # Run backtest
-        engine = BacktestEngine(initial_capital=10000.0, position_size=1.0)
-        result = engine.run(data, ast)
-        
-        return {
-            "success": True,
-            "data": {
-                "original_text": text,
-                "indicators_used": parsed_strategy.indicators_used,
-                "signals": {
-                    "entry_count": int(signals['entry'].sum()),
-                    "exit_count": int(signals['exit'].sum())
-                },
-                "backtest_results": result.to_dict()
-            }
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
-
-@app.post("/api/pipeline/end-to-end")
-async def end_to_end_pipeline(request: EndToEndRequest):
-    """
-    Complete pipeline: Natural Language → Backtest Results
-    
-    **Input Options:**
-    
-    Option 1 - JSON format:
-    ```json
-    {
-      "text": "Buy when RSI is above 70. Sell when RSI drops below 30."
-    }
-    ```
-    
-    Option 2 - With parameters:
-    ```json
-    {
-      "text": "Buy when RSI is above 70. Sell when RSI drops below 30.",
-      "initial_capital": 50000,
-      "position_size": 0.5
-    }
-    ```
+    **MAIN ENDPOINT** - Complete NLP-to-Strategy Pipeline
     
     **Flow:**
-    1. Parse natural language
-    2. Validate rule
-    3. Generate signals
-    4. Run backtest
-    5. Return complete results
+    1. Parse natural language → Structured JSON
+    2. Convert JSON → DSL AST
+    3. Validate DSL
+    4. Generate trading signals
+    5. Run backtest simulation
+    6. Return complete results
+    
+    **Input (Form Data):**
+    - `text`: Natural language trading rule (required)
+    - `initial_capital`: Starting capital in dollars (optional, default: 10000)
+    - `position_size`: Position size multiplier 0.0-1.0 (optional, default: 1.0)
+    
+    **Example Usage (cURL):**
+    ```bash
+    curl -X POST "http://localhost:8000/api/strategy" \
+      -F "text=Buy when RSI is above 70. Sell when RSI drops below 30." \
+      -F "initial_capital=50000" \
+      -F "position_size=0.5"
+    ```
+    
+    **Example Usage (Python):**
+    ```python
+    import requests
+    
+    response = requests.post(
+        "http://localhost:8000/api/strategy",
+        data={
+            "text": "Buy when close crosses above 20-day SMA. Sell when RSI drops below 30.",
+            "initial_capital": 10000,
+            "position_size": 1.0
+        }
+    )
+    
+    result = response.json()
+    print(f"Total Return: {result['data']['backtest']['total_return_pct']:.2f}%")
+    print(f"Trades: {result['data']['backtest']['total_trades']}")
+    ```
+    
+    **Returns:**
+    ```json
+    {
+      "success": true,
+      "data": {
+        "input": {
+          "original_text": "...",
+          "parsed_rule": {...},
+          "indicators_used": ["sma", "rsi"],
+          "complexity": "medium"
+        },
+        "signals": {
+          "entry_count": 5,
+          "exit_count": 5,
+          "entry_dates": ["2023-01-15", ...],
+          "exit_dates": ["2023-01-20", ...]
+        },
+        "backtest": {
+          "total_trades": 5,
+          "winning_trades": 3,
+          "losing_trades": 2,
+          "win_rate": 60.0,
+          "total_profit": 1234.56,
+          "total_return_pct": 12.35,
+          "max_drawdown": -5.23,
+          "sharpe_ratio": 1.45,
+          "trades": [...]
+        },
+        "config": {
+          "initial_capital": 10000.0,
+          "position_size": 1.0
+        },
+        "data_period": {
+          "start": "2023-01-01",
+          "end": "2023-12-31",
+          "bars": 252
+        }
+      }
+    }
+    ```
     """
     try:
-        # Step 1: Parse NL
-        parsed_strategy = parse_trading_rule(request.text)
+        # Validate inputs
+        if not text or not text.strip():
+            raise HTTPException(status_code=400, detail="Trading rule text cannot be empty")
         
-        # Step 2: Convert to AST and validate
-        ast = DSLParser.from_json_rule(parsed_strategy.rule.dict())
+        if initial_capital <= 0:
+            raise HTTPException(status_code=400, detail="Initial capital must be positive")
+        
+        if position_size <= 0 or position_size > 1:
+            raise HTTPException(status_code=400, detail="Position size must be between 0 and 1")
+        
+        # Step 1: Parse Natural Language → JSON
+        try:
+            parsed_strategy = parse_trading_rule(text)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Failed to parse trading rule: {str(e)}")
+        
+        # Step 2: Convert JSON → DSL AST
+        try:
+            ast = DSLParser.from_json_rule(parsed_strategy.rule.dict())
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to build DSL AST: {str(e)}")
+        
+        # Step 3: Validate DSL
         is_valid, errors, warnings = validate_dsl(ast)
-        
         if not is_valid:
-            raise HTTPException(status_code=400, detail=f"Invalid rule: {errors}")
+            raise HTTPException(status_code=400, detail=f"Invalid trading rule: {', '.join(errors)}")
         
-        # Step 3: Load data and generate signals
-        data = load_sample_data()
-        trading_func = generate_trading_function(ast)
-        signals = trading_func(data)
+        # Step 4: Load data and generate signals
+        try:
+            data = load_sample_data()
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=500, detail=str(e))
         
-        # Step 4: Run backtest
-        engine = BacktestEngine(
-            initial_capital=request.initial_capital,
-            position_size=request.position_size
-        )
-        result = engine.run(data, ast)
+        try:
+            trading_func = generate_trading_function(ast)
+            signals = trading_func(data)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to generate signals: {str(e)}")
         
+        # Extract signal information
+        entry_signals = signals['entry']
+        exit_signals = signals['exit']
+        entry_dates = data.index[entry_signals].strftime('%Y-%m-%d').tolist()
+        exit_dates = data.index[exit_signals].strftime('%Y-%m-%d').tolist()
+        
+        # Step 5: Run backtest
+        try:
+            engine = BacktestEngine(
+                initial_capital=initial_capital,
+                position_size=position_size
+            )
+            result = engine.run(data, ast)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Backtest execution failed: {str(e)}")
+        
+        # Build response
         return {
             "success": True,
             "data": {
-                "parsed_rule": {
-                    "rule_json": parsed_strategy.rule.dict(),
+                "input": {
                     "original_text": parsed_strategy.original_text,
+                    "parsed_rule": parsed_strategy.rule.dict(),
                     "indicators_used": parsed_strategy.indicators_used,
                     "complexity": parsed_strategy.complexity
                 },
-                "signals": {
-                    "entry_count": int(signals['entry'].sum()),
-                    "exit_count": int(signals['exit'].sum())
+                "validation": {
+                    "is_valid": is_valid,
+                    "warnings": warnings if warnings else []
                 },
-                "backtest_results": result.to_dict(),
+                "signals": {
+                    "entry_count": int(entry_signals.sum()),
+                    "exit_count": int(exit_signals.sum()),
+                    "entry_dates": entry_dates,
+                    "exit_dates": exit_dates
+                },
+                "backtest": result.to_dict(),
                 "config": {
-                    "initial_capital": request.initial_capital,
-                    "position_size": request.position_size
+                    "initial_capital": initial_capital,
+                    "position_size": position_size
                 },
                 "data_period": {
                     "start": str(data.index[0].date()),
@@ -493,71 +289,11 @@ async def end_to_end_pipeline(request: EndToEndRequest):
                 }
             }
         }
+        
     except HTTPException:
         raise
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Pipeline error: {str(e)}")
-
-
-@app.post("/api/backtest/upload")
-async def backtest_with_upload(
-    file: UploadFile = File(..., description="CSV file with OHLCV data"),
-    rule_json: str = Form(..., description="Trading rule as JSON string"),
-    initial_capital: float = Form(10000.0),
-    position_size: float = Form(1.0)
-):
-    """
-    Run backtest with uploaded CSV data
-    
-    **CSV Format:**
-    ```
-    date,open,high,low,close,volume
-    2023-01-01,100,105,99,103,1000000
-    ...
-    ```
-    """
-    try:
-        # Parse rule JSON
-        rule_dict = json.loads(rule_json)
-        
-        # Read uploaded file
-        content = await file.read()
-        data = dataframe_from_upload(content)
-        
-        # Parse to AST
-        ast = DSLParser.from_json_rule(rule_dict)
-        
-        # Validate
-        is_valid, errors, warnings = validate_dsl(ast)
-        if not is_valid:
-            raise HTTPException(status_code=400, detail=f"Invalid rule: {errors}")
-        
-        # Run backtest
-        engine = BacktestEngine(
-            initial_capital=initial_capital,
-            position_size=position_size
-        )
-        result = engine.run(data, ast)
-        
-        return {
-            "success": True,
-            "data": {
-                "backtest_results": result.to_dict(),
-                "initial_capital": initial_capital,
-                "position_size": position_size,
-                "data_period": {
-                    "start": str(data.index[0].date()),
-                    "end": str(data.index[-1].date()),
-                    "bars": len(data)
-                }
-            }
-        }
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON format for rule")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Upload backtest error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 # ============================================================================
@@ -566,17 +302,31 @@ async def backtest_with_upload(
 
 @app.exception_handler(404)
 async def not_found_handler(request, exc):
+    """Handle 404 errors"""
     return JSONResponse(
         status_code=404,
-        content={"success": False, "error": "Endpoint not found"}
+        content={
+            "success": False,
+            "error": "Endpoint not found",
+            "available_endpoints": {
+                "root": "GET /",
+                "health": "GET /health",
+                "strategy": "POST /api/strategy"
+            }
+        }
     )
 
 
 @app.exception_handler(500)
 async def internal_error_handler(request, exc):
+    """Handle 500 errors"""
     return JSONResponse(
         status_code=500,
-        content={"success": False, "error": "Internal server error"}
+        content={
+            "success": False,
+            "error": "Internal server error",
+            "message": "An unexpected error occurred. Please check your inputs and try again."
+        }
     )
 
 
@@ -590,10 +340,19 @@ if __name__ == "__main__":
     print("="*80)
     print("NLP-TO-STRATEGY TRADING ENGINE API")
     print("="*80)
-    print("\nStarting server...")
-    print("  • API Documentation: http://localhost:8000/docs")
-    print("  • Interactive API: http://localhost:8000/redoc")
-    print("  • Health Check: http://localhost:8000/health")
+    print("\n🚀 Starting server...")
+    print("\n📚 Documentation:")
+    print("  • Interactive API Docs: http://localhost:8000/docs")
+    print("  • ReDoc: http://localhost:8000/redoc")
+    print("\n🏥 Health Check:")
+    print("  • Health endpoint: http://localhost:8000/health")
+    print("\n🎯 Main Endpoint:")
+    print("  • POST /api/strategy")
+    print("  • Send trading rules in plain text")
+    print("\n💡 Quick Test:")
+    print('  curl -X POST "http://localhost:8000/api/strategy" \\')
+    print('    -F "text=Buy when RSI is above 70. Sell when RSI drops below 30."')
     print("\n" + "="*80)
+    print()
     
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
