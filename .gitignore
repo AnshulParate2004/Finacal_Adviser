@@ -16,6 +16,7 @@ env/
 .venv/
 .env/
 .env
+SUBMISSION_SUMMARY
 
 # ---- IDE / Editor ----
 .vscode/
