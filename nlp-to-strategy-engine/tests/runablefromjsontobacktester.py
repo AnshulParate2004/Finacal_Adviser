@@ -30,6 +30,13 @@ class JsonToBacktester:
         """Load OHLCV data from CSV"""
         try:
             self.data = pd.read_csv(csv_path, index_col='date', parse_dates=True)
+            
+            # Convert all numeric columns to float64 (required by TA-Lib)
+            numeric_columns = ['open', 'high', 'low', 'close', 'volume']
+            for col in numeric_columns:
+                if col in self.data.columns:
+                    self.data[col] = self.data[col].astype('float64')
+            
             print(f"✓ Data loaded: {len(self.data)} bars from {self.data.index[0].date()} to {self.data.index[-1].date()}")
             return True
         except Exception as e:
@@ -311,9 +318,9 @@ def example_2_rsi_volume():
     print("\n[Step 5] Report")
     pipeline.print_full_report()
     
-    # Export results
-    print("\n[Step 6] Export Results")
-    pipeline.export_results('backtest_results.json')
+    # Export results (DISABLED)
+    # print("\n[Step 6] Export Results")
+    # pipeline.export_results('backtest_results.json')
 
 
 def example_3_dsl_text():

@@ -1,18 +1,15 @@
-"""Code Generator - Converts DSL AST to Python trading functions with optional TA-Lib"""
+"""
+Code Generator - Converts DSL AST to Python trading functions using TA-Lib.
+
+Note: Indicators are implemented using TA-Lib and require `ta-lib` to be installed.
+      Install with: pip install TA-Lib (after installing the C library)
+"""
 from typing import Callable, Dict, Any, List, Optional, Tuple
 import pandas as pd
 import numpy as np
 import sys
 import os
-
-# Try to import TA-Lib, fallback to pandas if not available
-try:
-    import talib
-    USE_TALIB = True
-    print("✓ Using TA-Lib for indicator calculations")
-except ImportError:
-    USE_TALIB = False
-    print("⚠ TA-Lib not found, using pandas fallback implementations")
+import talib
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -24,173 +21,112 @@ from dsl.ast_nodes import (
 
 
 class IndicatorCalculator:
-    """Helper class to calculate technical indicators (TA-Lib or pandas fallback)"""
+    """Helper class to calculate technical indicators using TA-Lib"""
     
     @staticmethod
     def sma(series: pd.Series, period: int) -> pd.Series:
-        """Simple Moving Average"""
-        if USE_TALIB:
-            result = talib.SMA(series.values, timeperiod=period)
-            return pd.Series(result, index=series.index)
-        else:
-            return series.rolling(window=period).mean()
+        """Simple Moving Average using TA-Lib"""
+        result = talib.SMA(series.values, timeperiod=period)
+        return pd.Series(result, index=series.index)
     
     @staticmethod
     def ema(series: pd.Series, period: int) -> pd.Series:
-        """Exponential Moving Average"""
-        if USE_TALIB:
-            result = talib.EMA(series.values, timeperiod=period)
-            return pd.Series(result, index=series.index)
-        else:
-            return series.ewm(span=period, adjust=False).mean()
+        """Exponential Moving Average using TA-Lib"""
+        result = talib.EMA(series.values, timeperiod=period)
+        return pd.Series(result, index=series.index)
     
     @staticmethod
     def rsi(series: pd.Series, period: int = 14) -> pd.Series:
-        """Relative Strength Index"""
-        if USE_TALIB:
-            result = talib.RSI(series.values, timeperiod=period)
-            return pd.Series(result, index=series.index)
-        else:
-            delta = series.diff()
-            gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-            rs = gain / loss
-            rsi = 100 - (100 / (1 + rs))
-            return rsi
+        """Relative Strength Index using TA-Lib"""
+        result = talib.RSI(series.values, timeperiod=period)
+        return pd.Series(result, index=series.index)
     
     @staticmethod
     def macd(series: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[pd.Series, pd.Series, pd.Series]:
-        """MACD (Moving Average Convergence Divergence)"""
-        if USE_TALIB:
-            macd_line, signal_line, histogram = talib.MACD(
-                series.values,
-                fastperiod=fast,
-                slowperiod=slow,
-                signalperiod=signal
-            )
-            return (
-                pd.Series(macd_line, index=series.index),
-                pd.Series(signal_line, index=series.index),
-                pd.Series(histogram, index=series.index)
-            )
-        else:
-            ema_fast = series.ewm(span=fast, adjust=False).mean()
-            ema_slow = series.ewm(span=slow, adjust=False).mean()
-            macd_line = ema_fast - ema_slow
-            signal_line = macd_line.ewm(span=signal, adjust=False).mean()
-            histogram = macd_line - signal_line
-            return macd_line, signal_line, histogram
+        """MACD (Moving Average Convergence Divergence) using TA-Lib"""
+        macd_line, signal_line, histogram = talib.MACD(
+            series.values,
+            fastperiod=fast,
+            slowperiod=slow,
+            signalperiod=signal
+        )
+        return (
+            pd.Series(macd_line, index=series.index),
+            pd.Series(signal_line, index=series.index),
+            pd.Series(histogram, index=series.index)
+        )
     
     @staticmethod
     def bb_upper(series: pd.Series, period: int = 20, std_dev: float = 2.0) -> pd.Series:
-        """Bollinger Bands Upper"""
-        if USE_TALIB:
-            upper, middle, lower = talib.BBANDS(
-                series.values,
-                timeperiod=period,
-                nbdevup=std_dev,
-                nbdevdn=std_dev,
-                matype=0
-            )
-            return pd.Series(upper, index=series.index)
-        else:
-            sma = series.rolling(window=period).mean()
-            std = series.rolling(window=period).std()
-            return sma + (std * std_dev)
+        """Bollinger Bands Upper using TA-Lib"""
+        upper, middle, lower = talib.BBANDS(
+            series.values,
+            timeperiod=period,
+            nbdevup=std_dev,
+            nbdevdn=std_dev,
+            matype=0
+        )
+        return pd.Series(upper, index=series.index)
     
     @staticmethod
     def bb_middle(series: pd.Series, period: int = 20, std_dev: float = 2.0) -> pd.Series:
-        """Bollinger Bands Middle"""
-        if USE_TALIB:
-            upper, middle, lower = talib.BBANDS(
-                series.values,
-                timeperiod=period,
-                nbdevup=std_dev,
-                nbdevdn=std_dev,
-                matype=0
-            )
-            return pd.Series(middle, index=series.index)
-        else:
-            return series.rolling(window=period).mean()
+        """Bollinger Bands Middle using TA-Lib"""
+        upper, middle, lower = talib.BBANDS(
+            series.values,
+            timeperiod=period,
+            nbdevup=std_dev,
+            nbdevdn=std_dev,
+            matype=0
+        )
+        return pd.Series(middle, index=series.index)
     
     @staticmethod
     def bb_lower(series: pd.Series, period: int = 20, std_dev: float = 2.0) -> pd.Series:
-        """Bollinger Bands Lower"""
-        if USE_TALIB:
-            upper, middle, lower = talib.BBANDS(
-                series.values,
-                timeperiod=period,
-                nbdevup=std_dev,
-                nbdevdn=std_dev,
-                matype=0
-            )
-            return pd.Series(lower, index=series.index)
-        else:
-            sma = series.rolling(window=period).mean()
-            std = series.rolling(window=period).std()
-            return sma - (std * std_dev)
+        """Bollinger Bands Lower using TA-Lib"""
+        upper, middle, lower = talib.BBANDS(
+            series.values,
+            timeperiod=period,
+            nbdevup=std_dev,
+            nbdevdn=std_dev,
+            matype=0
+        )
+        return pd.Series(lower, index=series.index)
     
     @staticmethod
     def atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
-        """Average True Range"""
-        if USE_TALIB:
-            result = talib.ATR(high.values, low.values, close.values, timeperiod=period)
-            return pd.Series(result, index=close.index)
-        else:
-            tr1 = high - low
-            tr2 = abs(high - close.shift())
-            tr3 = abs(low - close.shift())
-            tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-            atr = tr.rolling(window=period).mean()
-            return atr
+        """Average True Range using TA-Lib"""
+        result = talib.ATR(high.values, low.values, close.values, timeperiod=period)
+        return pd.Series(result, index=close.index)
     
     @staticmethod
     def adx(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
-        """Average Directional Index"""
-        if USE_TALIB:
-            result = talib.ADX(high.values, low.values, close.values, timeperiod=period)
-            return pd.Series(result, index=close.index)
-        else:
-            plus_dm = (high.diff()).clip(lower=0)
-            minus_dm = (-low.diff()).clip(lower=0)
-            atr = IndicatorCalculator.atr(high, low, close, period)
-            plus_di = 100 * (plus_dm.rolling(window=period).mean() / atr)
-            minus_di = 100 * (minus_dm.rolling(window=period).mean() / atr)
-            dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
-            adx = dx.rolling(window=period).mean()
-            return adx
+        """Average Directional Index using TA-Lib"""
+        result = talib.ADX(high.values, low.values, close.values, timeperiod=period)
+        return pd.Series(result, index=close.index)
     
     @staticmethod
     def stoch(close: pd.Series, high: pd.Series, low: pd.Series, 
               period: int = 14, k_period: int = 3, d_period: int = 3) -> Tuple[pd.Series, pd.Series]:
-        """Stochastic Oscillator"""
-        if USE_TALIB:
-            slowk, slowd = talib.STOCH(
-                high.values,
-                low.values,
-                close.values,
-                fastk_period=period,
-                slowk_period=k_period,
-                slowk_matype=0,
-                slowd_period=d_period,
-                slowd_matype=0
-            )
-            return (
-                pd.Series(slowk, index=close.index),
-                pd.Series(slowd, index=close.index)
-            )
-        else:
-            low_min = low.rolling(window=period).min()
-            high_max = high.rolling(window=period).max()
-            k_percent = 100 * ((close - low_min) / (high_max - low_min))
-            k = k_percent.rolling(window=k_period).mean()
-            d = k.rolling(window=d_period).mean()
-            return k, d
+        """Stochastic Oscillator using TA-Lib"""
+        slowk, slowd = talib.STOCH(
+            high.values,
+            low.values,
+            close.values,
+            fastk_period=period,
+            slowk_period=k_period,
+            slowk_matype=0,
+            slowd_period=d_period,
+            slowd_matype=0
+        )
+        return (
+            pd.Series(slowk, index=close.index),
+            pd.Series(slowd, index=close.index)
+        )
     
     @staticmethod
     def stoch_d(close: pd.Series, high: pd.Series, low: pd.Series,
                 period: int = 14, k_period: int = 3, d_period: int = 3) -> pd.Series:
-        """Stochastic %D line"""
+        """Stochastic %D line using TA-Lib"""
         _, d = IndicatorCalculator.stoch(close, high, low, period, k_period, d_period)
         return d
 
@@ -222,13 +158,19 @@ class CodeGenerator:
             Returns:
                 Dict with 'entry' and 'exit' boolean Series
             """
-            self.df = df
+            self.df = df.copy()
             self.indicators_cache = {}
             
             # Ensure required columns
             required = {'open', 'high', 'low', 'close', 'volume'}
             if not required.issubset(set(df.columns)):
                 raise ValueError(f"DataFrame missing columns. Required: {required}")
+            
+            # Convert all numeric columns to float64 (TA-Lib requirement)
+            numeric_columns = ['open', 'high', 'low', 'close', 'volume']
+            for col in numeric_columns:
+                if col in self.df.columns:
+                    self.df[col] = self.df[col].astype('float64')
             
             # Generate entry signal
             entry_signal = self._evaluate_node(ast.entry)
@@ -326,7 +268,7 @@ class CodeGenerator:
         return pd.Series(node.value, index=self.df.index)
     
     def _evaluate_indicator(self, node: Indicator) -> pd.Series:
-        """Calculate technical indicator"""
+        """Calculate technical indicator using TA-Lib"""
         cache_key = f"{node.name}({','.join(str(p) for p in node.params)})"
         
         if cache_key in self.indicators_cache:
