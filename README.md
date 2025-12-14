@@ -189,44 +189,6 @@ Health check endpoint.
 ### `POST /api/check-completeness`
 Check if a trading rule is complete before processing.
 
-## ⚙️ Configuration
-
-Edit `.env`:
-```bash
-GOOGLE_API_KEY=your_api_key
-```
-
-Default settings in `main.py`:
-- Port: 8000
-- Host: 0.0.0.0
-- Initial Capital: $10,000
-- Position Size: 100%
-
-## 🐛 Troubleshooting
-
-**Server won't start:**
-```bash
-# Check if port 8000 is in use
-netstat -ano | findstr :8000
-
-# Use different port
-uvicorn main:app --port 8080
-```
-
-**Missing API key:**
-```bash
-echo "GOOGLE_API_KEY=your_key" > .env
-```
-
-**Import errors:**
-```bash
-pip install -r requirements.txt --upgrade
-```
-
-## 📝 License
-
-Educational project for NLP → DSL → Strategy execution demonstration.
-
 ---
 
 **Repository**: https://github.com/AnshulParate2004/Finacal_Adviser
