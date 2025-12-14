@@ -1,23 +1,30 @@
 // Trading Strategy DSL Grammar (Lark format) - Fixed
-start: strategy
 
-strategy: ENTRY ":" rule_block (EXIT ":" rule_block)?
+start: strategy // begins here
 
-rule_block: or_rule
+strategy: ENTRY ":" rule_block (EXIT ":" rule_block)? 
+// Strategy must have ENTRY
+// Strategy may have EXIT (? = optional)
+
+rule_block: or_rule // Can contain AND, OR, comparisons, parentheses
 
 or_rule: and_rule
        | or_rule OR and_rule -> bool_op
-
 and_rule: comparison
         | and_rule AND comparison -> bool_op
+// AND has higher priority than OR
+// So this:
+// A OR B AND C
+// means:
+// A OR (B AND C)
 
 comparison: expr comparison_op expr
 
-expr: series
-    | indicator
-    | time_ref
-    | number
-    | "(" or_rule ")"
+expr: series 
+    | indicator 
+    | time_ref 
+    | number 
+    | "(" or_rule ")" // (close > open AND volume > 1000)
 
 series: SERIES_LITERAL
 
@@ -62,3 +69,6 @@ OR: "OR"i
 
 %import common.WS
 %ignore WS
+// **Effect:**
+// - Parser automatically removes spaces, tabs, newlines
+// - Your code doesn't need to handle whitespace manually

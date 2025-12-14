@@ -174,10 +174,21 @@ Guidelines:
    - sma(field, period) - Simple Moving Average, e.g., sma(close,20)
    - ema(field, period) - Exponential Moving Average, e.g., ema(close,12)
    - rsi(field, period) - Relative Strength Index, e.g., rsi(close,14)
-   - macd(field, fast, slow, signal) - MACD, e.g., macd(close,12,26,9)
-   - bb(field, period, std) - Bollinger Bands, e.g., bb(close,20,2)
+   - macd(field, fast, slow, signal) - MACD value, e.g., macd(close,12,26,9)
+   - bb_upper(field, period, std) - Upper Bollinger Band, e.g., bb_upper(close,20,2)
+   - bb_lower(field, period, std) - Lower Bollinger Band, e.g., bb_lower(close,20,2)
+   - bb_middle(field, period, std) - Middle Bollinger Band, e.g., bb_middle(close,20,2)
+   - atr(period) - Average True Range, e.g., atr(14)
+   - adx(period) - Average Directional Index, e.g., adx(14)
+   - stoch(field, period, smooth_k, smooth_d) - Stochastic Oscillator, e.g., stoch(close,14,3,3)
    - volume - Trading volume
    - close, open, high, low - OHLC price data
+   
+   IMPORTANT FOR MACD:
+   - "MACD crosses above signal line" → use simple number comparison with 0: {{"left": "macd(close,12,26,9)", "operator": ">", "right": 0}}
+   - "MACD crosses below signal line" → {{"left": "macd(close,12,26,9)", "operator": "<", "right": 0}}
+   - "MACD is positive" → {{"left": "macd(close,12,26,9)", "operator": ">", "right": 0}}
+   - The MACD indicator value crossing 0 represents crossing the signal line
 
 5. Extract initial_capital if mentioned:
    - "$50k" or "$50,000" → 50000.0
