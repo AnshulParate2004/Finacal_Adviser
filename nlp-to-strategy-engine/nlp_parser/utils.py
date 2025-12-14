@@ -69,7 +69,7 @@ class LLMClient:
         return parsed
 
 
-def get_llm_client(model_name: str = "gemini-1.5-flash", temperature: float = 0.0) -> LLMClient:
+def get_llm_client(model_name: str = "gemini-2.5-flash", temperature: float = 0.0) -> LLMClient:
     """
     Factory function to get LLM client instance.
     

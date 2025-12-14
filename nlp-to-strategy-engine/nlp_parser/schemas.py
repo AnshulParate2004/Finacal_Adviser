@@ -23,10 +23,12 @@ class Condition(BaseModel):
 
 
 class TradingRule(BaseModel):
-    """Complete trading rule with entry and exit conditions."""
+    """Complete trading rule with entry, exit, and risk parameters."""
     entry: List[Condition] = Field(default_factory=list, description="List of entry conditions (AND logic)")
     exit: List[Condition] = Field(default_factory=list, description="List of exit conditions (AND logic)")
     logic: Optional[str] = Field(default="AND", description="Logic operator between conditions (AND/OR)")
+    initial_capital: Optional[float] = Field(default=10000.0, description="Initial capital if mentioned in text")
+    position_size: Optional[float] = Field(default=1.0, description="Position size (0.0-1.0) if mentioned in text")
     
     class Config:
         json_schema_extra = {
@@ -38,7 +40,9 @@ class TradingRule(BaseModel):
                 "exit": [
                     {"left": "rsi(close,14)", "operator": "<", "right": 30}
                 ],
-                "logic": "AND"
+                "logic": "AND",
+                "initial_capital": 50000.0,
+                "position_size": 0.5
             }
         }
 
