@@ -64,11 +64,13 @@ class CompletenessResponse(BaseModel):
 
 
 class ParsedStrategy(BaseModel):
-    """Complete parsed strategy with metadata."""
+    """Complete parsed strategy with metadata and risk parameters."""
     rule: TradingRule = Field(..., description="Parsed trading rule")
     original_text: str = Field(..., description="Original natural language input")
     indicators_used: List[str] = Field(default_factory=list, description="List of indicators referenced")
     complexity: str = Field(default="simple", description="Strategy complexity: simple, medium, complex")
+    initial_capital: Optional[float] = Field(default=10000.0, description="Initial capital extracted from text or default")
+    position_size: Optional[float] = Field(default=1.0, description="Position size (0.0-1.0) extracted from text or default")
     
     class Config:
         json_schema_extra = {
@@ -81,8 +83,10 @@ class ParsedStrategy(BaseModel):
                         {"left": "rsi(close,14)", "operator": "<", "right": 30}
                     ]
                 },
-                "original_text": "Buy when close is above 20-day SMA. Exit when RSI(14) is below 30.",
+                "original_text": "Buy when close is above 20-day SMA with $50,000 capital. Exit when RSI(14) is below 30.",
                 "indicators_used": ["sma", "rsi"],
-                "complexity": "simple"
+                "complexity": "simple",
+                "initial_capital": 50000.0,
+                "position_size": 1.0
             }
         }

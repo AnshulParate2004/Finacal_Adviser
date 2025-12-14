@@ -9,7 +9,7 @@ Flow:
 2. LLM Completeness Check (only if offline fails) - $$$
    - Detailed validation for ambiguous rules
 3. LLM Parsing (single API call) - $$$
-   - Parse complete rule into structured JSON
+   - Parse complete rule into structured JSON + extract capital/position size
 """
 import re
 from typing import Dict, List, Tuple, Optional
@@ -62,10 +62,76 @@ class OfflineCompletenessCheck:
         return any(re.search(pattern, text, re.IGNORECASE) for pattern in patterns)
 
 
+class CapitalExtractor:
+    """Extract capital and position size from natural language text."""
+    
+    @staticmethod
+    def extract_capital(text: str) -> Optional[float]:
+        """Extract initial capital from text."""
+        text_lower = text.lower()
+        
+        # Pattern: $50,000 | $50k | $50000 | 50k capital | 50000 dollars
+        patterns = [
+            r'\$\s*(\d+(?:,\d{3})*(?:\.\d+)?)\s*k(?:illion)?',  # $50k, $50K
+            r'\$\s*(\d+(?:,\d{3})*(?:\.\d+)?)\s*m(?:illion)?',  # $5m, $5M
+            r'\$\s*(\d+(?:,\d{3})*(?:\.\d+)?)',  # $50000, $50,000
+            r'(\d+(?:,\d{3})*(?:\.\d+)?)\s*k\s*(?:capital|dollars|usd)',  # 50k capital
+            r'(\d+(?:,\d{3})*(?:\.\d+)?)\s*m\s*(?:capital|dollars|usd)',  # 5m capital
+            r'(?:capital|amount|start)\s*(?:of|with)?\s*\$?\s*(\d+(?:,\d{3})*(?:\.\d+)?)\s*k',  # capital of 50k
+            r'(?:capital|amount|start)\s*(?:of|with)?\s*\$?\s*(\d+(?:,\d{3})*(?:\.\d+)?)\s*m',  # capital of 5m
+            r'(?:capital|amount|start)\s*(?:of|with)?\s*\$?\s*(\d+(?:,\d{3})*(?:\.\d+)?)',  # capital of 50000
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                value_str = match.group(1).replace(',', '')
+                value = float(value_str)
+                
+                # Check for multiplier in pattern
+                if 'k' in pattern.lower() and 'k' in text_lower[match.start():match.end()]:
+                    value *= 1000
+                elif 'm' in pattern.lower() and 'm' in text_lower[match.start():match.end()]:
+                    value *= 1000000
+                
+                return value
+        
+        return None
+    
+    @staticmethod
+    def extract_position_size(text: str) -> Optional[float]:
+        """Extract position size from text."""
+        text_lower = text.lower()
+        
+        # Pattern: 50% | half | 25 percent | invest 30%
+        patterns = [
+            r'(\d+(?:\.\d+)?)\s*%',  # 50%, 25.5%
+            r'(\d+(?:\.\d+)?)\s*percent',  # 50 percent
+            r'invest\s*(\d+(?:\.\d+)?)\s*%',  # invest 50%
+            r'(?:use|allocate|risk)\s*(\d+(?:\.\d+)?)\s*%',  # use 30%
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                percentage = float(match.group(1))
+                return percentage / 100.0  # Convert to 0-1 range
+        
+        # Check for words: half, quarter, third
+        if 'half' in text_lower or '1/2' in text_lower:
+            return 0.5
+        elif 'quarter' in text_lower or '1/4' in text_lower:
+            return 0.25
+        elif 'third' in text_lower or '1/3' in text_lower:
+            return 0.33
+        
+        return None
+
+
 class NLPParser:
     """Natural Language Parser for trading rules using LLM."""
     
-    def __init__(self, model_name: str = "gemini-2.5-flash"):
+    def __init__(self, model_name: str = "gemini-2.0-flash-exp"):
         """
         Initialize NLP Parser.
         
@@ -145,12 +211,13 @@ Examples of INCOMPLETE rules:
         1. Check completeness (offline first, LLM fallback)
         2. If incomplete → return missing elements + suggestion, stop here
         3. If complete → parse with LLM (single call)
+        4. Extract capital and position size from text
         
         Args:
             text: Natural language trading rule
             
         Returns:
-            ParsedStrategy with structured rule
+            ParsedStrategy with structured rule + risk parameters
             
         Raises:
             ValueError: If rule is incomplete or cannot be parsed
@@ -233,6 +300,16 @@ Output:
                 f"Unable to parse rule, please rephrase.\n\nError details: {str(e)}"
             )
         
+        # Step 5: Extract capital and position size from text
+        initial_capital = CapitalExtractor.extract_capital(text)
+        position_size = CapitalExtractor.extract_position_size(text)
+        
+        # Use defaults if not found
+        if initial_capital is None:
+            initial_capital = 10000.0
+        if position_size is None:
+            position_size = 1.0
+        
         # Extract indicators used
         indicators_used = self._extract_indicators(trading_rule)
         
@@ -243,7 +320,9 @@ Output:
             rule=trading_rule,
             original_text=text,
             indicators_used=indicators_used,
-            complexity=complexity
+            complexity=complexity,
+            initial_capital=initial_capital,
+            position_size=position_size
         )
         
         return parsed_strategy
@@ -316,7 +395,7 @@ def parse_trading_rule(text: str) -> ParsedStrategy:
         text: Natural language trading rule
         
     Returns:
-        ParsedStrategy object
+        ParsedStrategy object with rule + extracted capital/position size
     """
     parser = NLPParser()
     return parser.parse_rule(text)

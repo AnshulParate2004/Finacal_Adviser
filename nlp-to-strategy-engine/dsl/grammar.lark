@@ -44,12 +44,12 @@ TIME_LAG: ("prev" | /\d+[dwm]_ago/)
 
 NUMBER_SCALED: /-?\d+(\.\d+)?[KkMmBb]?/
 
-GT: ">"
-LT: "<"
-GTE: ">="
-LTE: "<="
-EQ: "=="
-NEQ: "!="
+GT: ">" // greater than
+LT: "<" // less than
+GTE: ">=" // greater than equal to
+LTE: "<=" // less than equal to
+EQ: "==" // equal to 
+NEQ: "!=" // not equal to
 CROSSES_ABOVE: "crosses_above"i
 CROSSES_BELOW: "crosses_below"i
 CROSSES: "crosses"i

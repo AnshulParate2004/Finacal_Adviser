@@ -1,14 +1,12 @@
 """
 FastAPI Application for NLP-to-Strategy Trading Engine
-Single-endpoint API for complete trading strategy pipeline
+Complete trading strategy pipeline with auto-extracted risk parameters
 """
 from fastapi import FastAPI, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 from typing import Optional
 import pandas as pd
-from datetime import datetime
 from pathlib import Path
 
 # Import our modules
@@ -22,7 +20,7 @@ from backtester import BacktestEngine
 app = FastAPI(
     title="NLP-to-Strategy Trading Engine API",
     description="Convert natural language trading rules to executable strategies and backtest them",
-    version="1.0.0"
+    version="2.0.0"
 )
 
 # CORS middleware
@@ -66,8 +64,8 @@ async def root():
     """API information and documentation"""
     return {
         "name": "NLP-to-Strategy Trading Engine API",
-        "version": "1.0.0",
-        "description": "Convert natural language trading rules to executable strategies and backtest them",
+        "version": "2.0.0",
+        "description": "Convert natural language trading rules to executable strategies and backtest them. Capital and position size are auto-extracted from text!",
         "documentation": "http://localhost:8000/docs",
         "endpoints": {
             "health": {
@@ -80,23 +78,24 @@ async def root():
                 "method": "POST",
                 "description": "Main endpoint - Complete NL to backtest pipeline",
                 "parameters": {
-                    "text": "Natural language trading rule (required)",
-                    "initial_capital": "Starting capital in dollars (optional, default: 10000)",
-                    "position_size": "Position size multiplier (optional, default: 1.0)"
+                    "text": "Natural language trading rule (required). Can include capital like '$50k' or position size like '50%'",
+                    "initial_capital": "OPTIONAL override for starting capital (auto-extracted from text if mentioned)",
+                    "position_size": "OPTIONAL override for position size (auto-extracted from text if mentioned)"
                 },
-                "example_curl": 'curl -X POST "http://localhost:8000/api/strategy" -F "text=Buy when RSI is above 70. Sell when RSI drops below 30."',
+                "example_curl": 'curl -X POST "http://localhost:8000/api/strategy" -F "text=Buy when RSI is above 70 with $50,000 capital and invest 50%. Sell when RSI drops below 30."',
                 "example_python": '''import requests
 response = requests.post(
     "http://localhost:8000/api/strategy",
-    data={"text": "Buy when RSI is above 70. Sell when RSI drops below 30."}
+    data={"text": "Buy when RSI is above 70 with $50k. Sell when RSI drops below 30."}
 )
 print(response.json())'''
             }
         },
         "example_rules": [
-            "Buy when close crosses above 20-day SMA. Sell when close crosses below 20-day SMA.",
-            "Buy when RSI is above 70 and volume is above 1 million. Sell when RSI drops below 30.",
-            "Enter when close is below lower Bollinger Band. Exit when close crosses above upper Bollinger Band."
+            "Buy when close crosses above 20-day SMA with $100k. Sell when close crosses below 20-day SMA.",
+            "Buy when RSI is above 70 and volume is above 1 million using 50% position. Sell when RSI drops below 30.",
+            "Enter when close is below lower Bollinger Band with $25,000 capital. Exit when close crosses above upper Bollinger Band.",
+            "Invest half portfolio when MACD crosses above signal line. Exit when RSI drops below 30."
         ]
     }
 
@@ -106,23 +105,31 @@ async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
         "service": "nlp-to-strategy-engine",
-        "version": "1.0.0"
+        "version": "2.0.0"
     }
 
 
 @app.post("/api/strategy")
 async def execute_strategy(
-    text: str = Form(..., description="Natural language trading rule"),
-    initial_capital: Optional[float] = Form(10000.0, description="Initial capital (default: 10000)"),
-    position_size: Optional[float] = Form(1.0, description="Position size (default: 1.0)")
+    text: str = Form(..., description="Natural language trading rule (can include capital/position size)"),
+    initial_capital: Optional[float] = Form(None, description="OPTIONAL: Override auto-extracted capital"),
+    position_size: Optional[float] = Form(None, description="OPTIONAL: Override auto-extracted position size (0.0-1.0)")
 ):
     """
     **MAIN ENDPOINT** - Complete NLP-to-Strategy Pipeline
     
+    **Auto-Extraction of Risk Parameters:**
+    The NLP parser automatically extracts capital and position size from your text!
+    
+    Examples:
+    - "Buy RSI > 70 with $50,000" → auto-extracts $50,000 capital
+    - "Buy RSI > 70 using 50%" → auto-extracts 50% position size
+    - "Invest half portfolio when..." → auto-extracts 50% position size
+    - "Buy with $100k capital and invest 25%..." → auto-extracts both
+    
     **Flow:**
-    1. Parse natural language → Structured JSON
+    1. Parse natural language → Extract rule + capital + position size
     2. Convert JSON → DSL AST
     3. Validate DSL
     4. Generate trading signals
@@ -130,12 +137,17 @@ async def execute_strategy(
     6. Return complete results
     
     **Input (Form Data):**
-    - `text`: Natural language trading rule (required)
-    - `initial_capital`: Starting capital in dollars (optional, default: 10000)
-    - `position_size`: Position size multiplier 0.0-1.0 (optional, default: 1.0)
+    - `text`: Natural language trading rule (required, can include capital/position mentions)
+    - `initial_capital`: OPTIONAL override (if not provided, uses extracted or default $10,000)
+    - `position_size`: OPTIONAL override (if not provided, uses extracted or default 100%)
     
     **Example Usage (cURL):**
     ```bash
+    # Auto-extract capital and position from text
+    curl -X POST "http://localhost:8000/api/strategy" \
+      -F "text=Buy when RSI is above 70 with $50k and invest 50%. Sell when RSI drops below 30."
+    
+    # Override with manual values
     curl -X POST "http://localhost:8000/api/strategy" \
       -F "text=Buy when RSI is above 70. Sell when RSI drops below 30." \
       -F "initial_capital=50000" \
@@ -146,18 +158,15 @@ async def execute_strategy(
     ```python
     import requests
     
+    # Auto-extract from text
     response = requests.post(
         "http://localhost:8000/api/strategy",
-        data={
-            "text": "Buy when close crosses above 20-day SMA. Sell when RSI drops below 30.",
-            "initial_capital": 10000,
-            "position_size": 1.0
-        }
+        data={"text": "Buy when close crosses above 20-day SMA with $100k. Sell when RSI drops below 30."}
     )
     
     result = response.json()
+    print(f"Capital used: ${result['data']['config']['initial_capital']}")
     print(f"Total Return: {result['data']['backtest']['total_return_pct']:.2f}%")
-    print(f"Trades: {result['data']['backtest']['total_trades']}")
     ```
     
     **Returns:**
@@ -169,67 +178,65 @@ async def execute_strategy(
           "original_text": "...",
           "parsed_rule": {...},
           "indicators_used": ["sma", "rsi"],
-          "complexity": "medium"
+          "complexity": "medium",
+          "extracted_capital": 50000.0,
+          "extracted_position_size": 0.5
         },
-        "signals": {
-          "entry_count": 5,
-          "exit_count": 5,
-          "entry_dates": ["2023-01-15", ...],
-          "exit_dates": ["2023-01-20", ...]
-        },
-        "backtest": {
-          "total_trades": 5,
-          "winning_trades": 3,
-          "losing_trades": 2,
-          "win_rate": 60.0,
-          "total_profit": 1234.56,
-          "total_return_pct": 12.35,
-          "max_drawdown": -5.23,
-          "sharpe_ratio": 1.45,
-          "trades": [...]
-        },
+        "signals": {...},
+        "backtest": {...},
         "config": {
-          "initial_capital": 10000.0,
-          "position_size": 1.0
-        },
-        "data_period": {
-          "start": "2023-01-01",
-          "end": "2023-12-31",
-          "bars": 252
+          "initial_capital": 50000.0,
+          "position_size": 0.5,
+          "capital_source": "extracted",
+          "position_source": "extracted"
         }
       }
     }
     ```
     """
     try:
-        # Validate inputs
+        # Validate text input
         if not text or not text.strip():
             raise HTTPException(status_code=400, detail="Trading rule text cannot be empty")
         
-        if initial_capital <= 0:
-            raise HTTPException(status_code=400, detail="Initial capital must be positive")
-        
-        if position_size <= 0 or position_size > 1:
-            raise HTTPException(status_code=400, detail="Position size must be between 0 and 1")
-        
-        # Step 1: Parse Natural Language → JSON
+        # Step 1: Parse Natural Language → JSON (auto-extracts capital & position size)
         try:
             parsed_strategy = parse_trading_rule(text)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Failed to parse trading rule: {str(e)}")
         
-        # Step 2: Convert JSON → DSL AST
+        # Step 2: Use extracted values OR manual overrides
+        # Priority: Manual override > Extracted from text > Default
+        final_capital = initial_capital if initial_capital is not None else parsed_strategy.initial_capital
+        final_position = position_size if position_size is not None else parsed_strategy.position_size
+        
+        # Track source of values for transparency
+        capital_source = "manual_override" if initial_capital is not None else (
+            "extracted" if parsed_strategy.initial_capital != 10000.0 else "default"
+        )
+        position_source = "manual_override" if position_size is not None else (
+            "extracted" if parsed_strategy.position_size != 1.0 else "default"
+        )
+        
+        # Validate final values
+        if final_capital <= 0:
+            raise HTTPException(status_code=400, detail="Initial capital must be positive")
+        
+        if final_position <= 0 or final_position > 1:
+            raise HTTPException(status_code=400, detail="Position size must be between 0 and 1")
+        
+        # Step 3: Convert JSON → DSL AST
         try:
             ast = DSLParser.from_json_rule(parsed_strategy.rule.dict())
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to build DSL AST: {str(e)}")
         
-        # Step 3: Validate DSL
+        # Step 4: Validate DSL
         is_valid, errors, warnings = validate_dsl(ast)
         if not is_valid:
             raise HTTPException(status_code=400, detail=f"Invalid trading rule: {', '.join(errors)}")
         
-        # Step 4: Load data and generate signals
+        # Step 5: Load data and generate signals
         try:
             data = load_sample_data()
         except FileNotFoundError as e:
@@ -247,11 +254,11 @@ async def execute_strategy(
         entry_dates = data.index[entry_signals].strftime('%Y-%m-%d').tolist()
         exit_dates = data.index[exit_signals].strftime('%Y-%m-%d').tolist()
         
-        # Step 5: Run backtest
+        # Step 6: Run backtest with final capital and position size
         try:
             engine = BacktestEngine(
-                initial_capital=initial_capital,
-                position_size=position_size
+                initial_capital=final_capital,
+                position_size=final_position
             )
             result = engine.run(data, ast)
         except Exception as e:
@@ -265,7 +272,9 @@ async def execute_strategy(
                     "original_text": parsed_strategy.original_text,
                     "parsed_rule": parsed_strategy.rule.dict(),
                     "indicators_used": parsed_strategy.indicators_used,
-                    "complexity": parsed_strategy.complexity
+                    "complexity": parsed_strategy.complexity,
+                    "extracted_capital": parsed_strategy.initial_capital,
+                    "extracted_position_size": parsed_strategy.position_size
                 },
                 "validation": {
                     "is_valid": is_valid,
@@ -279,8 +288,10 @@ async def execute_strategy(
                 },
                 "backtest": result.to_dict(),
                 "config": {
-                    "initial_capital": initial_capital,
-                    "position_size": position_size
+                    "initial_capital": final_capital,
+                    "position_size": final_position,
+                    "capital_source": capital_source,
+                    "position_source": position_source
                 },
                 "data_period": {
                     "start": str(data.index[0].date()),
@@ -336,5 +347,27 @@ async def internal_error_handler(request, exc):
 
 if __name__ == "__main__":
     import uvicorn
+    
+    print("="*80)
+    print("NLP-TO-STRATEGY TRADING ENGINE API v2.0")
+    print("="*80)
+    print("\n🚀 Starting server with AUTO-EXTRACTION...")
+    print("\n✨ NEW: Capital and position size are auto-extracted from text!")
+    print("   Examples:")
+    print("   • 'Buy with $50k' → auto-extracts $50,000 capital")
+    print("   • 'Invest 50%' → auto-extracts 50% position size")
+    print("   • 'Use half portfolio' → auto-extracts 50% position")
+    print("\n📚 Documentation:")
+    print("  • Interactive API Docs: http://localhost:8000/docs")
+    print("  • ReDoc: http://localhost:8000/redoc")
+    print("\n🏥 Health Check:")
+    print("  • Health endpoint: http://localhost:8000/health")
+    print("\n🎯 Main Endpoint:")
+    print("  • POST /api/strategy")
+    print("\n💡 Quick Test (Auto-extraction):")
+    print('  curl -X POST "http://localhost:8000/api/strategy" \\')
+    print('    -F "text=Buy when RSI > 70 with $50k and invest 50%. Sell when RSI < 30."')
+    print("\n" + "="*80)
+    print()
     
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")

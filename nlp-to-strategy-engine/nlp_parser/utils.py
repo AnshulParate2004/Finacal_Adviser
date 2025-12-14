@@ -1,7 +1,3 @@
-"""
-LLM client wrapper utilities for NLP parser.
-Uses Google Generative AI with LangChain for structured output.
-"""
 import os
 from typing import Optional
 from langchain_google_genai import ChatGoogleGenerativeAI
