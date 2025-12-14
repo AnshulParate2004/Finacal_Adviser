@@ -9,6 +9,7 @@ import { ErrorDisplay } from '@/components/ErrorDisplay';
 import { useToast } from '@/hooks/use-toast';
 
 const API_URL = 'http://localhost:8000/api/strategy';
+const CHECK_URL = 'http://localhost:8000/api/check-completeness';
 
 // Mock data for demo when API is unavailable
 const mockResult: BacktestResult = {
@@ -47,40 +48,99 @@ const mockResult: BacktestResult = {
 
 type ViewState = 'input' | 'loading' | 'results' | 'error';
 
+interface CompletenessError {
+  missing_elements: string[];
+  suggestion: string;
+}
+
 const Index = () => {
   const [viewState, setViewState] = useState<ViewState>('input');
   const [strategyText, setStrategyText] = useState('');
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [error, setError] = useState<string>('');
+  const [completenessError, setCompletenessError] = useState<CompletenessError | null>(null);
   const { toast } = useToast();
 
-  const handleSubmit = async (text: string, capital: number, positionSize: number) => {
-    setViewState('loading');
-    setError('');
-
-    // API expects Form data, not JSON
+  const checkCompleteness = async (text: string): Promise<boolean> => {
     const formData = new FormData();
     formData.append('text', text);
-    formData.append('initial_capital', capital.toString());
-    formData.append('position_size', (positionSize / 100).toString()); // Convert percentage to decimal
 
     try {
-      const response = await fetch(API_URL, {
+      const response = await fetch(CHECK_URL, {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || `API error: ${response.status}`);
+        // If check endpoint fails, proceed anyway
+        return true;
       }
 
-      const apiResponse = await response.json();
+      const data = await response.json();
+      
+      if (!data.is_complete) {
+        setCompletenessError({
+          missing_elements: data.missing_elements || [],
+          suggestion: data.suggestion || 'Please add more details to your strategy.',
+        });
+        return false;
+      }
+
+      return true;
+    } catch {
+      // If check fails, proceed with strategy anyway
+      return true;
+    }
+  };
+
+  const runStrategyAnalysis = async (text: string) => {
+    const formData = new FormData();
+    formData.append('text', text);
+
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || `API error: ${response.status}`);
+    }
+
+    const apiResponse = await response.json();
+    
+    if (!apiResponse.success) {
+      throw new Error(apiResponse.error || 'Strategy processing failed');
+    }
+    
+    return apiResponse;
+  };
+
+  const handleSubmit = async (text: string) => {
+    setViewState('loading');
+    setError('');
+    setCompletenessError(null);
+
+    try {
+      // Step 1: Check completeness first
+      const isComplete = await checkCompleteness(text);
+      
+      if (!isComplete) {
+        setViewState('input');
+        toast({
+          title: 'Incomplete Strategy',
+          description: 'Please add more details to your strategy.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Step 2: If complete, run strategy analysis automatically
+      const apiResponse = await runStrategyAnalysis(text);
       
       // Transform API response to our BacktestResult format
       const backtest = apiResponse.data.backtest;
       const input = apiResponse.data.input;
-      const dataPeriod = apiResponse.data.data_period;
       
       const transformedResult: BacktestResult = {
         total_return: backtest.total_return_pct,
@@ -92,16 +152,16 @@ const Index = () => {
           losing_trades: backtest.losing_trades,
           max_drawdown: Math.abs(backtest.max_drawdown),
           sharpe_ratio: backtest.sharpe_ratio,
-          average_trade_return: backtest.total_return_pct / (backtest.total_trades || 1),
+          average_trade_return: backtest.avg_trade_return,
         },
         strategy_details: {
           original_text: input.original_text,
-          indicators: input.indicators_used,
-          entry_conditions: input.parsed_rule.entry?.conditions?.map((c: any) => 
-            `${c.indicator} ${c.comparison} ${c.value}`
+          indicators: input.indicators_used || [],
+          entry_conditions: input.parsed_rule.entry?.map((c: any) => 
+            `${c.left} ${c.operator} ${c.right}`
           ) || [],
-          exit_conditions: input.parsed_rule.exit?.conditions?.map((c: any) => 
-            `${c.indicator} ${c.comparison} ${c.value}`
+          exit_conditions: input.parsed_rule.exit?.map((c: any) => 
+            `${c.left} ${c.operator} ${c.right}`
           ) || [],
           complexity: input.complexity as 'simple' | 'medium' | 'complex',
         },
@@ -111,16 +171,17 @@ const Index = () => {
           exit_date: t.exit_date,
           exit_price: t.exit_price,
           profit_loss: t.profit_loss,
-          profit_loss_percent: t.profit_loss_pct,
-          type: 'long' as const,
+          profit_loss_percent: t.profit_loss_pct || t.profit_loss_percent,
+          type: t.type || 'long' as const,
         })) || [],
-        data_start_date: dataPeriod.start,
-        data_end_date: dataPeriod.end,
-        data_bars: dataPeriod.bars,
+        data_start_date: backtest.data_start || '',
+        data_end_date: backtest.data_end || '',
+        data_bars: backtest.data_bars || 0,
       };
       
       setResult(transformedResult);
       setViewState('results');
+      setCompletenessError(null);
       toast({
         title: 'Analysis Complete',
         description: `Analyzed ${backtest.total_trades} trades with ${backtest.win_rate.toFixed(1)}% win rate.`,
@@ -146,11 +207,13 @@ const Index = () => {
     setViewState('input');
     setResult(null);
     setError('');
+    setCompletenessError(null);
   };
 
   const handleRetry = () => {
     setViewState('input');
     setError('');
+    setCompletenessError(null);
   };
 
   return (
@@ -194,6 +257,7 @@ const Index = () => {
                 isLoading={false}
                 strategyText={strategyText}
                 onTextChange={setStrategyText}
+                completenessError={completenessError}
               />
               <ExampleStrategies
                 onSelect={setStrategyText}
