@@ -1,9 +1,3 @@
-"""
-Code Generator - Converts DSL AST to Python trading functions using TA-Lib.
-
-Note: Indicators are implemented using TA-Lib and require `ta-lib` to be installed.
-      Install with: pip install TA-Lib (after installing the C library)
-"""
 from typing import Callable, Dict, Any, List, Optional, Tuple
 import pandas as pd
 import numpy as np

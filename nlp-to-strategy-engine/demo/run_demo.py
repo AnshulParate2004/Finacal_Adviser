@@ -1,7 +1,3 @@
-"""
-Complete Demo: NLP → JSON → DSL → Backtest Pipeline
-Demonstrates the full flow from natural language to backtest results
-"""
 import sys
 import os
 import pandas as pd

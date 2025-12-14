@@ -1,9 +1,3 @@
-"""
-Indicator helper functions for backtesting using TA-Lib.
-
-Note: Indicators are implemented using TA-Lib and require `ta-lib` to be installed.
-      Install with: pip install TA-Lib (after installing the C library)
-"""
 import pandas as pd
 import numpy as np
 import talib
