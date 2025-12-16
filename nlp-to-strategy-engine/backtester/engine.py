@@ -1,6 +1,7 @@
+"""Backtesting Engine - Simulates trading strategy execution"""
 import sys
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Callable, Union
 from dataclasses import dataclass
 import pandas as pd
 import numpy as np
@@ -96,23 +97,50 @@ class BacktestEngine:
         self.df: Optional[pd.DataFrame] = None
         self.signals: Optional[Dict] = None
     
-    def run(self, df: pd.DataFrame, ast: Strategy) -> BacktestResult:
+    def run(
+        self, 
+        df: pd.DataFrame, 
+        strategy: Union[Strategy, Callable]
+    ) -> BacktestResult:
         """
-        Run backtest on DataFrame with strategy AST
+        Run backtest on DataFrame with either Strategy AST or pre-generated trading function
+        
+        PERFORMANCE OPTIMIZATION: Accepts either AST or function to avoid redundant generation
+        - If Strategy AST passed: generates function once
+        - If function passed: uses directly (no generation needed)
         
         Args:
             df: OHLCV DataFrame with columns: open, high, low, close, volume
-            ast: Strategy AST from DSL parser
+            strategy: Either Strategy AST node OR callable trading function
             
         Returns:
             BacktestResult with trades and metrics
+            
+        Examples:
+            # Option 1: Pass AST (generates function internally)
+            ast = parse_dsl(dsl_code)
+            result = backtester.run(df, ast)
+            
+            # Option 2: Pass pre-generated function (RECOMMENDED - no redundant generation)
+            trading_func = generate_trading_function(ast)
+            result = backtester.run(df, trading_func)
         """
         self.df = df.copy()
         
-        # Generate trading function from AST
-        trading_func = generate_trading_function(ast)
+        # Determine if we need to generate the trading function or use existing one
+        if isinstance(strategy, Strategy):
+            # AST passed: generate trading function
+            trading_func = generate_trading_function(strategy)
+        elif callable(strategy):
+            # Pre-generated function passed: use directly (OPTIMAL)
+            trading_func = strategy
+        else:
+            raise TypeError(
+                f"strategy must be either Strategy AST or callable function, "
+                f"got {type(strategy)}"
+            )
         
-        # Evaluate signals
+        # Evaluate signals using the trading function
         self.signals = trading_func(self.df)
         entry_signals = self.signals['entry'].astype(bool)
         exit_signals = self.signals['exit'].astype(bool)

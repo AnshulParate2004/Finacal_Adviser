@@ -215,7 +215,8 @@ def process_strategy_pipeline(text: str) -> Dict[str, Any]:
             initial_capital=initial_capital,
             position_size=position_size
         )
-        backtest_result = backtester.run(df, ast)
+        # OPTIMIZED: Pass pre-generated function to avoid redundant generation
+        backtest_result = backtester.run(df, trading_function)
     except Exception as e:
         raise HTTPException(
             status_code=500,

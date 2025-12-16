@@ -10,6 +10,7 @@ import json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dsl import DSLParser, parse_dsl
+from codegen import generate_trading_function
 from backtester import BacktestEngine
 
 
@@ -44,13 +45,14 @@ def test_backtest_1_sma_crossover():
     print("  Entry: close crosses above SMA(10)")
     print("  Exit: close crosses below SMA(10)")
     
-    # Convert to AST
+    # Convert to AST and generate function
     ast = DSLParser.from_json_rule(json_rule)
+    trading_func = generate_trading_function(ast)
     
-    # Run backtest
+    # Run backtest (OPTIMIZED: pass function, not AST)
     print("\n[Backtest] Running...")
     engine = BacktestEngine(initial_capital=10000.0, position_size=1.0)
-    result = engine.run(df, ast)
+    result = engine.run(df, trading_func)
     
     # Print summary
     engine.print_summary()
@@ -82,13 +84,14 @@ def test_backtest_2_rsi_strategy():
     print("  Entry: RSI(14) < 30 (oversold)")
     print("  Exit: RSI(14) > 70 (overbought)")
     
-    # Convert to AST
+    # Convert to AST and generate function
     ast = DSLParser.from_json_rule(json_rule)
+    trading_func = generate_trading_function(ast)
     
-    # Run backtest
+    # Run backtest (OPTIMIZED: pass function, not AST)
     print("\n[Backtest] Running...")
     engine = BacktestEngine(initial_capital=10000.0, position_size=1.0)
-    result = engine.run(df, ast)
+    result = engine.run(df, trading_func)
     
     # Print summary
     engine.print_summary()
@@ -115,13 +118,14 @@ def test_backtest_3_dsl_text():
     print("  Entry: close > SMA(20) AND volume > 1.2M")
     print("  Exit: close < SMA(20)")
     
-    # Parse DSL
+    # Parse DSL and generate function
     ast = parse_dsl(dsl)
+    trading_func = generate_trading_function(ast)
     
-    # Run backtest
+    # Run backtest (OPTIMIZED: pass function, not AST)
     print("\n[Backtest] Running...")
     engine = BacktestEngine(initial_capital=10000.0, position_size=1.0)
-    result = engine.run(df, ast)
+    result = engine.run(df, trading_func)
     
     # Print summary
     engine.print_summary()
@@ -150,13 +154,14 @@ def test_backtest_4_bollinger_bands():
     print("  Entry: close < BB_Lower(20, 2std)")
     print("  Exit: close > BB_Middle(20, 2std)")
     
-    # Convert to AST
+    # Convert to AST and generate function
     ast = DSLParser.from_json_rule(json_rule)
+    trading_func = generate_trading_function(ast)
     
-    # Run backtest
+    # Run backtest (OPTIMIZED: pass function, not AST)
     print("\n[Backtest] Running...")
     engine = BacktestEngine(initial_capital=10000.0, position_size=1.0)
-    result = engine.run(df, ast)
+    result = engine.run(df, trading_func)
     
     # Print summary
     engine.print_summary()
@@ -187,13 +192,14 @@ def test_backtest_5_complex_strategy():
     print("  Entry: close > SMA(20) AND RSI > 50 AND volume > 1.5M")
     print("  Exit: RSI < 30")
     
-    # Convert to AST
+    # Convert to AST and generate function
     ast = DSLParser.from_json_rule(json_rule)
+    trading_func = generate_trading_function(ast)
     
-    # Run backtest
+    # Run backtest (OPTIMIZED: pass function, not AST)
     print("\n[Backtest] Running...")
     engine = BacktestEngine(initial_capital=10000.0, position_size=1.0)
-    result = engine.run(df, ast)
+    result = engine.run(df, trading_func)
     
     # Print summary
     engine.print_summary()

@@ -127,12 +127,15 @@ class JsonToBacktester:
                 print("✗ No data loaded")
                 return False
             
-            # Run backtest
+            # Generate trading function once
+            trading_func = generate_trading_function(self.ast)
+            
+            # Run backtest (OPTIMIZED: pass function, not AST)
             engine = BacktestEngine(
                 initial_capital=self.initial_capital,
                 position_size=position_size
             )
-            self.result = engine.run(self.data, self.ast)
+            self.result = engine.run(self.data, trading_func)
             
             print(f"✓ Backtest completed")
             print(f"  Trades executed: {self.result.total_trades}")

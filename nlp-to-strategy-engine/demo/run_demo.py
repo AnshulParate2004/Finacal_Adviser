@@ -114,7 +114,8 @@ def run_complete_demo():
             # Step 4: Signals → Backtest
             print("\n[STEP 4] Run Backtest Simulation")
             engine = BacktestEngine(initial_capital=10000.0, position_size=1.0)
-            result = engine.run(data, ast)
+            # OPTIMIZED: Pass pre-generated function to avoid redundant generation
+            result = engine.run(data, trading_func)
             
             print(f"✓ Backtest completed")
             print(f"  Trades executed: {result.total_trades}")
@@ -210,7 +211,8 @@ def run_interactive_demo():
         # Backtest
         print("\n[4/4] Running backtest...")
         engine = BacktestEngine(initial_capital=10000.0, position_size=1.0)
-        result = engine.run(data, ast)
+        # OPTIMIZED: Pass pre-generated function
+        result = engine.run(data, trading_func)
         
         print("\n" + "="*80)
         print("BACKTEST RESULTS")
