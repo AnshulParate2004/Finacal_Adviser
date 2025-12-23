@@ -415,16 +415,11 @@ if __name__ == "__main__":
     import uvicorn
     
     print("=" * 60)
-    print("🚀 NLP-to-Strategy Trading Engine API")
+    print(" NLP-to-Strategy Trading Engine API")
     print("=" * 60)
-    print("\n📊 Starting server...")
-    print(f"📍 Server URL: http://localhost:8000")
-    print(f"📚 API Docs: http://localhost:8000/docs")
-    print(f"📖 ReDoc: http://localhost:8000/redoc")
-    print(f"🏥 Health Check: http://localhost:8000/health")
     print("\n" + "=" * 60)
-    print("\n✨ Ready to process trading strategies!")
-    print("💡 Tip: The NLP parser extracts capital and position size from your text!")
+    print("\n Ready to process trading strategies!")
+    print(" Tip: The NLP parser extracts capital and position size from your text!")
     print("    Example: 'Buy when RSI > 70 with $50k capital investing 50%'")
     print("\n")
     

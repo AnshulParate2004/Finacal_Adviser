@@ -41,7 +41,13 @@ class OfflineCompletenessCheck:
     
     @staticmethod
     def _has_complete_comparison(text: str) -> bool:
-        """Check if text has complete comparisons (not dangling)."""
+        """Check if text has complete comparisons (not dangling).
+           EXAMPLES:
+            "SMA(20) is above"              # indicator(params) + operator
+            "RSI(14) crosses above"         # indicator(params) + operator
+            "EMA(50) is below"              # indicator(params) + operator
+            "MACD(12,26,9) > "              # indicator(params) + operator
+        """
         patterns = [
             r'\b(?:close|open|high|low|volume|price|rsi|sma|ema|macd|bb)\b[^.!?]*?(?:above|below|>|<|>=|<=|==|is|was|crosses).*?(?:\d+|[A-Za-z]+(?:day|week|month|average|high|low|yesterday))',
             r'\b(?:close|open|high|low|volume|rsi|sma|ema|macd|bb)\s*\([^)]*\)[^.!?]*?(?:above|below|>|<|>=|<=|==|is|was|crosses)',
@@ -282,7 +288,7 @@ Output:
     
     def _extract_indicators(self, rule: TradingRule) -> List[str]:
         """
-        Extract list of indicators used in the rule.
+        Extract list of indicators used in the rule like EMA RSI and other .
         
         Args:
             rule: TradingRule object

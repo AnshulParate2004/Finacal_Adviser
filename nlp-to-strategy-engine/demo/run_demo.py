@@ -60,11 +60,11 @@ def run_complete_demo():
             if col in data.columns:
                 data[col] = data[col].astype('float64')
         
-        print(f"✓ Loaded {len(data)} bars from {data.index[0].date()} to {data.index[-1].date()}")
+        print(f" Loaded {len(data)} bars from {data.index[0].date()} to {data.index[-1].date()}")
         print(f"\nSample data:")
         print(data.head())
     except Exception as e:
-        print(f"✗ Error loading data: {e}")
+        print(f" Error loading data: {e}")
         return
     
     # Run each example
@@ -78,7 +78,7 @@ def run_complete_demo():
             print("\n[STEP 1] Natural Language → JSON")
             parsed_strategy = parse_trading_rule(example['text'])
             
-            print(f"✓ Parsed successfully")
+            print(f" Parsed successfully")
             print(f"  Indicators used: {', '.join(parsed_strategy.indicators_used) if parsed_strategy.indicators_used else 'None'}")
             print(f"  Complexity: {parsed_strategy.complexity}")
             print(f"\nStructured JSON:")
@@ -92,10 +92,10 @@ def run_complete_demo():
             is_valid, errors, warnings = validate_dsl(ast)
             
             if not is_valid:
-                print(f"✗ Validation failed: {errors}")
+                print(f" Validation failed: {errors}")
                 continue
             
-            print(f"✓ AST created and validated")
+            print(f" AST created and validated")
             if warnings:
                 print(f"  Warnings: {warnings}")
             
@@ -107,7 +107,7 @@ def run_complete_demo():
             entry_count = int(signals['entry'].sum())
             exit_count = int(signals['exit'].sum())
             
-            print(f"✓ Signals generated")
+            print(f" Signals generated")
             print(f"  Entry signals: {entry_count}")
             print(f"  Exit signals: {exit_count}")
             
@@ -117,7 +117,7 @@ def run_complete_demo():
             # OPTIMIZED: Pass pre-generated function to avoid redundant generation
             result = engine.run(data, trading_func)
             
-            print(f"✓ Backtest completed")
+            print(f" Backtest completed")
             print(f"  Trades executed: {result.total_trades}")
             
             # Print results
@@ -137,16 +137,16 @@ def run_complete_demo():
                     print(f"     ${trade.entry_price:.2f} → ${trade.exit_price:.2f}")
                     print(f"     P&L: ${trade.profit:+.2f} ({trade.return_pct:+.2f}%)")
             
-            print(f"\n✓ Pipeline completed successfully for '{example['name']}'")
+            print(f"\n Pipeline completed successfully for '{example['name']}'")
             
         except Exception as e:
-            print(f"\n✗ Error in pipeline: {e}")
+            print(f"\n Error in pipeline: {e}")
             import traceback
             traceback.print_exc()
             continue
     
     print_section("DEMO COMPLETE")
-    print("\n✓ All examples processed")
+    print("\n All examples processed")
     print("\nThe pipeline successfully:")
     print("  • Parsed natural language trading rules")
     print("  • Converted to structured JSON")
@@ -189,7 +189,7 @@ def run_interactive_demo():
         # Parse
         print("\n[1/4] Parsing natural language...")
         parsed_strategy = parse_trading_rule(user_input)
-        print(f"✓ Parsed: {len(parsed_strategy.rule.entry)} entry conditions, {len(parsed_strategy.rule.exit)} exit conditions")
+        print(f" Parsed: {len(parsed_strategy.rule.entry)} entry conditions, {len(parsed_strategy.rule.exit)} exit conditions")
         
         # Convert to AST
         print("\n[2/4] Building DSL AST...")
@@ -200,13 +200,13 @@ def run_interactive_demo():
             print(f"✗ Validation failed: {errors}")
             return
         
-        print(f"✓ AST validated")
+        print(f" AST validated")
         
         # Generate signals
         print("\n[3/4] Generating signals...")
         trading_func = generate_trading_function(ast)
         signals = trading_func(data)
-        print(f"✓ Entry: {int(signals['entry'].sum())}, Exit: {int(signals['exit'].sum())}")
+        print(f" Entry: {int(signals['entry'].sum())}, Exit: {int(signals['exit'].sum())}")
         
         # Backtest
         print("\n[4/4] Running backtest...")
@@ -230,10 +230,10 @@ def run_interactive_demo():
                 print(f"  {i}. ${trade.entry_price:.2f} → ${trade.exit_price:.2f} "
                       f"({trade.return_pct:+.2f}%)")
         
-        print("\n✓ Complete!")
+        print("\n Complete!")
         
     except Exception as e:
-        print(f"\n✗ Error: {e}")
+        print(f"\n Error: {e}")
         import traceback
         traceback.print_exc()
 

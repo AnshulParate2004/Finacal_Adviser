@@ -10,20 +10,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dsl import parse_dsl, validate_dsl, get_strategy_quality
 
-
 # Mock NLP Output Models
 class Condition(BaseModel):
     left: str
     operator: str
     right: float | str
 
-
 class TradingRule(BaseModel):
     entry: List[Condition]
     exit: List[Condition]
     initial_capital: float
     position_size: float
-
 
 class ParsedStrategy(BaseModel):
     rule: TradingRule
@@ -32,7 +29,6 @@ class ParsedStrategy(BaseModel):
     complexity: str
     initial_capital: float
     position_size: float
-
 
 # Converter: ParsedStrategy → DSL
 def convert_to_dsl(parsed_strategy: ParsedStrategy) -> str:

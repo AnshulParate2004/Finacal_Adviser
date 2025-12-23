@@ -19,25 +19,33 @@ class IndicatorCalculator:
     
     @staticmethod
     def sma(series: pd.Series, period: int) -> pd.Series:
-        """Simple Moving Average using TA-Lib"""
+        """Simple Moving Average using TA-Lib
+           : Average of the last N closing prices.
+        """
         result = talib.SMA(series.values, timeperiod=period)
         return pd.Series(result, index=series.index)
     
     @staticmethod
     def ema(series: pd.Series, period: int) -> pd.Series:
-        """Exponential Moving Average using TA-Lib"""
+        """Exponential Moving Average using TA-Lib
+           : Weighted average giving more weight to recent prices.
+        """
         result = talib.EMA(series.values, timeperiod=period)
         return pd.Series(result, index=series.index)
     
     @staticmethod
     def rsi(series: pd.Series, period: int = 14) -> pd.Series:
-        """Relative Strength Index using TA-Lib"""
+        """Relative Strength Index using TA-Lib
+           : Measures momentum by comparing gains and losses.
+        """
         result = talib.RSI(series.values, timeperiod=period)
         return pd.Series(result, index=series.index)
     
     @staticmethod
     def macd(series: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[pd.Series, pd.Series, pd.Series]:
-        """MACD (Moving Average Convergence Divergence) using TA-Lib"""
+        """MACD (Moving Average Convergence Divergence) using TA-Lib
+           : Difference between fast EMA and slow EMA.
+        """
         macd_line, signal_line, histogram = talib.MACD(
             series.values,
             fastperiod=fast,

@@ -1,22 +1,30 @@
 """DSL Semantic Validator and Quality Checker"""
 from typing import List, Dict, Any, Tuple, Optional
 from .ast_nodes import (
-    ASTNode, Strategy, Series, Number, Indicator, TimeReference,
+    ASTNode, Strategy, Indicator, 
     Comparison, BooleanOp
 )
-
 
 class ValidationError(Exception):
     pass
 
-
 class DSLValidator:
+    "This is the core validator that checks the DSL code for correctness."
     VALID_SERIES = {'close', 'open', 'high', 'low', 'volume'}
     VALID_INDICATORS = {
-        'sma': (2, 2), 'ema': (2, 2), 'rsi': (2, 2), 'atr': (1, 1),
-        'adx': (1, 1), 'macd': (4, 4), 'macd_signal': (4, 4),
-        'macd_histogram': (4, 4), 'bb_upper': (3, 3), 'bb_middle': (3, 3),
-        'bb_lower': (3, 3), 'stoch': (4, 4), 'stoch_d': (4, 4),
+        'sma': (2, 2), 
+        'ema': (2, 2), 
+        'rsi': (2, 2), 
+        'atr': (1, 1),
+        'adx': (1, 1), 
+        'macd': (4, 4), 
+        'macd_signal': (4, 4),
+        'macd_histogram': (4, 4), 
+        'bb_upper': (3, 3), 
+        'bb_middle': (3, 3),
+        'bb_lower': (3, 3), 
+        'stoch': (4, 4), 
+        'stoch_d': (4, 4),
     }
     VALID_OPERATORS = {">", "<", ">=", "<=", "==", "!=",
                       "crosses_above", "crosses_below", "crosses", "touches"}
@@ -27,6 +35,7 @@ class DSLValidator:
         self.warnings: List[str] = []
     
     def validate(self, ast: ASTNode) -> Tuple[bool, List[str], List[str]]:
+        "Main validation method."
         self.errors = []
         self.warnings = []
         try:
@@ -39,6 +48,7 @@ class DSLValidator:
         return len(self.errors) == 0, self.errors, self.warnings
     
     def _validate_strategy(self, node: Strategy):
+        "Ensures ENTRY block exists (mandatory for strategy)."
         if node.entry is None:
             self.errors.append("Strategy must have ENTRY block")
             return
@@ -47,6 +57,7 @@ class DSLValidator:
             self._validate_node(node.exit)
     
     def _validate_node(self, node: ASTNode):
+        "Recursively validates Comparison and BooleanOp nodes."
         if isinstance(node, Comparison):
             if node.operator not in self.VALID_OPERATORS:
                 self.errors.append(f"Invalid operator: {node.operator}")
@@ -60,8 +71,10 @@ class DSLValidator:
 
 
 class DSLHealthCheck:
+    "This is for quality checks (not just syntax)."
     @staticmethod
     def check_strategy_quality(ast: Strategy) -> Dict[str, Any]:
+        "main method to call"
         metrics = {
             'entry_complexity': DSLHealthCheck._get_complexity(ast.entry),
             'exit_complexity': DSLHealthCheck._get_complexity(ast.exit) if ast.exit else 0,
@@ -78,6 +91,7 @@ class DSLHealthCheck:
     
     @staticmethod
     def _get_complexity(node: Optional[ASTNode]) -> int:
+        "Counts the number of comparisons in the rule."
         if node is None:
             return 0
         if isinstance(node, Comparison):
@@ -88,6 +102,7 @@ class DSLHealthCheck:
     
     @staticmethod
     def _count_indicators(node: Optional[ASTNode]) -> int:
+        "Counts how many indicators are used in a strategy."
         if node is None:
             return 0
         count = 0

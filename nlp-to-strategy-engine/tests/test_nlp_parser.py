@@ -18,7 +18,7 @@ print(f"\nInput:\n  {text}\n")
 try:
     result = parse_trading_rule(text)
     
-    print("✓ SUCCESS!\n")
+    print("SUCCESS!\n")
     print(f"Capital: ${result.initial_capital:,.2f}")
     print(f"Position: {result.position_size*100:.0f}%")
     print(f"Indicators: {result.indicators_used}")
@@ -33,6 +33,6 @@ try:
         print(f"  • {cond.left} {cond.operator} {cond.right}")
     
 except Exception as e:
-    print(f"✗ ERROR: {e}")
+    print(f"ERROR: {e}")
 
 print("\n" + "="*80)

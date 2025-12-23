@@ -16,6 +16,7 @@ class NodeType(Enum):
 
 @dataclass
 class ASTNode:
+    "All nodes in ASTBase class"
     node_type: str
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -32,6 +33,7 @@ class Series(ASTNode):
 
 @dataclass
 class Number(ASTNode):
+    "A basic trading series like close, open, high, low, volume."
     node_type: str = field(default="number", init=False)
     value: Union[int, float] = 0
     def __post_init__(self):
@@ -41,6 +43,7 @@ class Number(ASTNode):
 
 @dataclass
 class Indicator(ASTNode):
+    "Represents: Numeric constants in the DSL (1000, 20, 1.5M)."
     node_type: str = field(default="indicator", init=False)
     name: str = ""
     params: List[Union[str, int, float]] = field(default_factory=list)
@@ -53,6 +56,7 @@ class Indicator(ASTNode):
 
 @dataclass
 class TimeReference(ASTNode):
+    "Represents: Technical indicators like sma(close, 20) or rsi(close, 14)."
     node_type: str = field(default="time_reference", init=False)
     series: str = ""
     lag: str = ""
@@ -63,6 +67,7 @@ class TimeReference(ASTNode):
 
 @dataclass
 class Comparison(ASTNode):
+    "Represents: References to past values like close_prev or high[5]."
     node_type: str = field(default="comparison", init=False)
     operator: str = ""
     left: ASTNode = None
@@ -79,6 +84,7 @@ class Comparison(ASTNode):
 
 @dataclass
 class BooleanOp(ASTNode):
+    "Represents: Comparison expressions, e.g., close > sma(close, 20)."
     node_type: str = field(default="boolean_op", init=False)
     operator: str = ""
     left: ASTNode = None
@@ -94,6 +100,7 @@ class BooleanOp(ASTNode):
 
 @dataclass
 class Strategy(ASTNode):
+    "Represents: The top-level trading strategy"
     node_type: str = field(default="strategy", init=False)
     entry: Optional[ASTNode] = None
     exit: Optional[ASTNode] = None
@@ -105,8 +112,9 @@ class Strategy(ASTNode):
                 "entry": self.entry.to_dict() if hasattr(self.entry, 'to_dict') else self.entry,
                 "exit": self.exit.to_dict() if hasattr(self.exit, 'to_dict') else self.exit}
 
-
+# should make diffrent file for this class
 class ASTBuilder:
+    "This is AST Buidler one source for all Nodes"
     @staticmethod
     def build_series(name: str) -> Series:
         return Series(name=name)

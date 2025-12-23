@@ -3,8 +3,7 @@
 start: strategy // begins here
 
 strategy: ENTRY ":" rule_block (EXIT ":" rule_block)? 
-// Strategy must have ENTRY
-// Strategy may have EXIT (? = optional)
+// Every strategy must have entry and exit is optional
 
 rule_block: or_rule // Can contain AND, OR, comparisons, parentheses
 
@@ -15,12 +14,18 @@ and_rule: comparison
 // AND has higher priority than OR
 // So this:
 // A OR B AND C
-// means:
 // A OR (B AND C)
+//so tree 
+//       OR
+//      /  \
+//    A    AND
+//         / \
+//        C   D
 
-comparison: expr comparison_op expr
 
-expr: series 
+comparison: expr comparison_op expr // smallest boolean unit left and right side expression 
+
+expr: series // close, open, high, low, volume
     | indicator 
     | time_ref 
     | number 
@@ -36,6 +41,10 @@ indicator_params: SERIES_LITERAL "," number
 
 time_ref: SERIES_LITERAL "_" TIME_LAG
         | SERIES_LITERAL "[" number "]"
+// Without TIME_LAG:
+//ENTRY: close > high  # Wrong! Compares today's close to today's high
+// With TIME_LAG:
+//ENTRY: close crosses_above high_prev  # Correct! Compares today vs yesterday
 
 number: NUMBER_SCALED
 
