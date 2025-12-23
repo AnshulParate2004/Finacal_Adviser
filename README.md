@@ -123,9 +123,9 @@ nlp-to-strategy-engine/
 - **Assumptions**: [`docs/ASSUMPTIONS.md`](https://github.com/AnshulParate2004/Finacal_Adviser/blob/main/nlp-to-strategy-engine/docs/ASSUMPTIONS.md)
 
 ## 🔧 Pipeline Flow
-
-```
 ![NLP to Strategy Engine Pipeline](docs/Gemini_Generated_Image_o65mvyo65mvyo65m.png)
+```
+
 
 Natural Language Input
     ↓
