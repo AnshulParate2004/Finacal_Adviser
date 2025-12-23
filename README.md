@@ -125,6 +125,8 @@ nlp-to-strategy-engine/
 ## 🔧 Pipeline Flow
 
 ```
+![NLP to Strategy Engine Pipeline](docs/Gemini_Generated_Image_o65mvyo65mvyo65m.png)
+
 Natural Language Input
     ↓
 NLP Parser (LLM) → Structured JSON
