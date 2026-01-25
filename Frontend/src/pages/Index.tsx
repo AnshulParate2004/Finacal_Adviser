@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { BacktestResult, StrategyRequest } from '@/types/strategy';
+import type { BacktestResult } from '@/types/strategy';
 import { StrategyInput } from '@/components/StrategyInput';
 import { ExampleStrategies } from '@/components/ExampleStrategies';
 import { LoadingState } from '@/components/LoadingState';
@@ -10,41 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 
 const API_URL = 'http://localhost:8000/api/strategy';
 const CHECK_URL = 'http://localhost:8000/api/check-completeness';
-
-// Mock data for demo when API is unavailable
-const mockResult: BacktestResult = {
-  total_return: 24.67,
-  win_rate: 62.5,
-  total_trades: 48,
-  performance: {
-    total_profit: 2467.32,
-    winning_trades: 30,
-    losing_trades: 18,
-    max_drawdown: 12.34,
-    sharpe_ratio: 1.85,
-    average_trade_return: 0.51,
-  },
-  strategy_details: {
-    original_text: 'Buy when RSI is above 70 and volume is high. Sell when RSI drops below 30.',
-    indicators: ['RSI', 'Volume'],
-    entry_conditions: ['RSI crosses above 70', 'Volume exceeds 20-period average'],
-    exit_conditions: ['RSI drops below 30', 'Stop loss at -5%'],
-    complexity: 'medium',
-  },
-  trades: [
-    { entry_date: '2024-01-15', entry_price: 152.34, exit_date: '2024-01-22', exit_price: 158.67, profit_loss: 633.0, profit_loss_percent: 4.16, type: 'long' },
-    { entry_date: '2024-02-03', entry_price: 161.20, exit_date: '2024-02-08', exit_price: 157.45, profit_loss: -375.0, profit_loss_percent: -2.33, type: 'long' },
-    { entry_date: '2024-02-15', entry_price: 155.80, exit_date: '2024-02-28', exit_price: 168.92, profit_loss: 1312.0, profit_loss_percent: 8.42, type: 'long' },
-    { entry_date: '2024-03-05', entry_price: 172.45, exit_date: '2024-03-12', exit_price: 169.23, profit_loss: -322.0, profit_loss_percent: -1.87, type: 'long' },
-    { entry_date: '2024-03-20', entry_price: 165.30, exit_date: '2024-04-02', exit_price: 178.56, profit_loss: 1326.0, profit_loss_percent: 8.02, type: 'long' },
-    { entry_date: '2024-04-10', entry_price: 182.15, exit_date: '2024-04-15', exit_price: 176.89, profit_loss: -526.0, profit_loss_percent: -2.89, type: 'long' },
-    { entry_date: '2024-04-22', entry_price: 174.50, exit_date: '2024-05-03', exit_price: 185.23, profit_loss: 1073.0, profit_loss_percent: 6.15, type: 'long' },
-    { entry_date: '2024-05-10', entry_price: 188.90, exit_date: '2024-05-18', exit_price: 192.34, profit_loss: 344.0, profit_loss_percent: 1.82, type: 'long' },
-  ],
-  data_start_date: '2023-01-01',
-  data_end_date: '2024-12-01',
-  data_bars: 5234,
-};
 
 type ViewState = 'input' | 'loading' | 'results' | 'error';
 
@@ -60,6 +25,19 @@ const Index = () => {
   const [error, setError] = useState<string>('');
   const [completenessError, setCompletenessError] = useState<CompletenessError | null>(null);
   const { toast } = useToast();
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const totalScroll = document.documentElement.scrollTop;
+      const windowHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scroll = totalScroll / windowHeight;
+      setScrollProgress(scroll);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const checkCompleteness = async (text: string): Promise<boolean> => {
     const formData = new FormData();
@@ -71,13 +49,10 @@ const Index = () => {
         body: formData,
       });
 
-      if (!response.ok) {
-        // If check endpoint fails, proceed anyway
-        return true;
-      }
+      if (!response.ok) return true;
 
       const data = await response.json();
-      
+
       if (!data.is_complete) {
         setCompletenessError({
           missing_elements: data.missing_elements || [],
@@ -88,7 +63,6 @@ const Index = () => {
 
       return true;
     } catch {
-      // If check fails, proceed with strategy anyway
       return true;
     }
   };
@@ -108,11 +82,11 @@ const Index = () => {
     }
 
     const apiResponse = await response.json();
-    
+
     if (!apiResponse.success) {
       throw new Error(apiResponse.error || 'Strategy processing failed');
     }
-    
+
     return apiResponse;
   };
 
@@ -122,9 +96,8 @@ const Index = () => {
     setCompletenessError(null);
 
     try {
-      // Step 1: Check completeness first
       const isComplete = await checkCompleteness(text);
-      
+
       if (!isComplete) {
         setViewState('input');
         toast({
@@ -135,13 +108,11 @@ const Index = () => {
         return;
       }
 
-      // Step 2: If complete, run strategy analysis automatically
       const apiResponse = await runStrategyAnalysis(text);
-      
-      // Transform API response to our BacktestResult format
+
       const backtest = apiResponse.data.backtest;
       const input = apiResponse.data.input;
-      
+
       const transformedResult: BacktestResult = {
         total_return: backtest.total_return_pct,
         win_rate: backtest.win_rate,
@@ -157,10 +128,10 @@ const Index = () => {
         strategy_details: {
           original_text: input.original_text,
           indicators: input.indicators_used || [],
-          entry_conditions: input.parsed_rule.entry?.map((c: any) => 
+          entry_conditions: input.parsed_rule.entry?.map((c: any) =>
             `${c.left} ${c.operator} ${c.right}`
           ) || [],
-          exit_conditions: input.parsed_rule.exit?.map((c: any) => 
+          exit_conditions: input.parsed_rule.exit?.map((c: any) =>
             `${c.left} ${c.operator} ${c.right}`
           ) || [],
           complexity: input.complexity as 'simple' | 'medium' | 'complex',
@@ -172,13 +143,13 @@ const Index = () => {
           exit_price: t.exit_price,
           profit_loss: t.profit_loss,
           profit_loss_percent: t.profit_loss_pct || t.profit_loss_percent,
-          type: t.type || 'long' as const,
+          type: t.type || 'long',
         })) || [],
         data_start_date: backtest.data_start || '',
         data_end_date: backtest.data_end || '',
         data_bars: backtest.data_bars || 0,
       };
-      
+
       setResult(transformedResult);
       setViewState('results');
       setCompletenessError(null);
@@ -190,7 +161,7 @@ const Index = () => {
       console.error('API Error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to connect to backend';
       setError(
-        errorMessage.includes('Failed to fetch') 
+        errorMessage.includes('Failed to fetch')
           ? 'Cannot connect to backend. Make sure your server is running at http://localhost:8000'
           : errorMessage
       );
@@ -217,21 +188,27 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Background gradient */}
-      <div className="fixed inset-0 bg-gradient-to-br from-primary/5 via-background to-background pointer-events-none" />
-      
-      {/* Grid pattern overlay */}
-      <div 
-        className="fixed inset-0 opacity-[0.02] pointer-events-none"
-        style={{
-          backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px),
-                           linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`,
-          backgroundSize: '50px 50px',
-        }}
-      />
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden relative selection:bg-primary/30">
+      {/* Animated Background Elements */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-primary/10 via-background to-background" />
+        <div className="absolute -top-[20%] -right-[10%] w-[50%] h-[50%] rounded-full bg-accent/5 blur-3xl animate-float" />
+        <div className="absolute top-[20%] -left-[10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-3xl animate-float" style={{ animationDelay: '2s' }} />
 
-      <main className="relative z-10 container max-w-6xl mx-auto px-4 py-8 md:py-12">
+        {/* Grid Pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px),
+                             linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`,
+            backgroundSize: '40px 40px',
+            maskImage: 'linear-gradient(to bottom, black, transparent)',
+            WebkitMaskImage: 'linear-gradient(to bottom, black, transparent)',
+          }}
+        />
+      </div>
+
+      <main className="relative z-10 container max-w-7xl mx-auto px-4 py-8 md:py-16">
         <AnimatePresence mode="wait">
           {viewState === 'loading' && (
             <motion.div
@@ -239,6 +216,7 @@ const Index = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              className="flex items-center justify-center min-h-[60vh]"
             >
               <LoadingState />
             </motion.div>
@@ -247,10 +225,11 @@ const Index = () => {
           {viewState === 'input' && (
             <motion.div
               key="input"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
+              transition={{ duration: 0.5 }}
+              className="space-y-12 max-w-4xl mx-auto"
             >
               <StrategyInput
                 onSubmit={handleSubmit}
@@ -280,15 +259,22 @@ const Index = () => {
           {viewState === 'error' && (
             <motion.div
               key="error"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="flex items-center justify-center min-h-[50vh]"
             >
               <ErrorDisplay message={error} onRetry={handleRetry} />
             </motion.div>
           )}
         </AnimatePresence>
       </main>
+
+      {/* Scroll Progress Bar */}
+      <motion.div
+        className="fixed bottom-0 left-0 h-1 bg-gradient-to-r from-primary to-accent z-50 origin-left"
+        style={{ scaleX: scrollProgress }}
+      />
     </div>
   );
 };

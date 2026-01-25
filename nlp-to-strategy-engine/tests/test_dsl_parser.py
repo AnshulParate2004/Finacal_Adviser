@@ -61,8 +61,8 @@ def main():
             initial_capital=50000.0,
             position_size=0.5
         ),
-        original_text="Buy when RSI > 70 with $50k invest 50%. Sell when RSI < 30.",
-        indicators_used=["rsi"],
+        original_text="Buy when the 10-days SMA crosses above the 50-days SMA. Sell when the 10-days SMA crosses below 1 month SMA.",
+        indicators_used=["sma"],
         complexity="simple",
         initial_capital=50000.0,
         position_size=0.5

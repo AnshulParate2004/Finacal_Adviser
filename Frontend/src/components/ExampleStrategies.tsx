@@ -1,98 +1,89 @@
 import { motion } from 'framer-motion';
-import { TrendingUp, Activity, BarChart3, Waves } from 'lucide-react';
-import type { ExampleStrategy } from '@/types/strategy';
+import { Lightbulb, ArrowRight, TrendingUp, Shield, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const exampleStrategies: ExampleStrategy[] = [
-  {
-    id: 'sma-crossover',
-    name: 'SMA Crossover Strategy',
-    description: 'Classic moving average crossover',
-    text: 'Buy when the 10-period SMA crosses above the 50-period SMA. Sell when the 10-period SMA crosses below the 50-period SMA.',
-    icon: 'trending',
-  },
-  {
-    id: 'rsi-volume',
-    name: 'RSI + Volume Momentum',
-    description: 'RSI with volume confirmation',
-    text: 'Buy when RSI is above 70 and volume is above average. Sell when RSI drops below 30 or volume decreases significantly.',
-    icon: 'activity',
-  },
-  {
-    id: 'bollinger-reversion',
-    name: 'Bollinger Bands Mean Reversion',
-    description: 'Mean reversion using Bollinger Bands',
-    text: 'Buy when price touches the lower Bollinger Band and RSI is below 30. Sell when price reaches the middle band or upper band.',
-    icon: 'waves',
-  },
-  {
-    id: 'macd-divergence',
-    name: 'MACD Divergence',
-    description: 'MACD signal line crossover',
-    text: 'Buy when MACD line crosses above the signal line and histogram is positive. Sell when MACD crosses below signal line.',
-    icon: 'chart',
-  },
-];
-
-const iconMap = {
-  trending: TrendingUp,
-  activity: Activity,
-  chart: BarChart3,
-  waves: Waves,
-};
+import { Button } from '@/components/ui/button';
 
 interface ExampleStrategiesProps {
   onSelect: (text: string) => void;
   disabled: boolean;
 }
 
+const strategies = [
+  {
+    icon: TrendingUp,
+    title: "Momentum RSI",
+    description: "Buy when RSI > 70 and volume is high. Sell when RSI < 30.",
+    color: "from-blue-500 to-cyan-500"
+  },
+  {
+    icon: Shield,
+    title: "Safe Moving Average",
+    description: "Buy when price crosses above SMA 200. risk 1% per trade.",
+    color: "from-emerald-500 to-green-500"
+  },
+  {
+    icon: Activity,
+    title: "Volatility Breakout",
+    description: "Buy if price > Bollinger Upper Band. Stop loss at 2% below entry.",
+    color: "from-purple-500 to-pink-500"
+  }
+];
+
 export function ExampleStrategies({ onSelect, disabled }: ExampleStrategiesProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.2 }}
-      className="space-y-4"
-    >
-      <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-        Example Strategies
-      </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {exampleStrategies.map((strategy, index) => {
-          const Icon = iconMap[strategy.icon as keyof typeof iconMap];
-          return (
-            <motion.button
-              key={strategy.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.3 + index * 0.1 }}
-              onClick={() => onSelect(strategy.text)}
-              disabled={disabled}
-              className={cn(
-                "group p-4 rounded-xl text-left",
-                "glass glass-hover",
-                "transition-all duration-300",
-                "hover:scale-[1.02] hover:glow-primary",
-                "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-              )}
-            >
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground truncate">
-                    {strategy.name}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {strategy.description}
-                  </p>
-                </div>
-              </div>
-            </motion.button>
-          );
-        })}
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-muted-foreground px-1">
+        <Lightbulb className="w-5 h-5 text-yellow-500" />
+        <span className="text-sm font-medium">Try these examples</span>
       </div>
-    </motion.div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {strategies.map((strategy, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 + 0.5 }}
+          >
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full h-auto p-6 flex flex-col items-start gap-4 whitespace-normal text-left relative overflow-hidden group",
+                "bg-card/40 backdrop-blur-sm border-white/5 hover:border-white/10",
+                "hover:bg-card/60 transition-all duration-500 hover:-translate-y-1"
+              )}
+              onClick={() => onSelect(strategy.description)}
+              disabled={disabled}
+            >
+              <div className={cn(
+                "absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 bg-gradient-to-br",
+                strategy.color,
+                "opacity-[0.03]"
+              )} />
+
+              <div className="flex items-center justify-between w-full relative z-10">
+                <div className={cn(
+                  "p-2.5 rounded-xl bg-gradient-to-br opacity-80 group-hover:opacity-100 transition-opacity",
+                  strategy.color,
+                  "text-white shadow-lg"
+                )}>
+                  <strategy.icon className="w-5 h-5" />
+                </div>
+                <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:translate-x-1 transition-transform" />
+              </div>
+
+              <div className="space-y-2 relative z-10">
+                <div className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                  {strategy.title}
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+                  "{strategy.description}"
+                </p>
+              </div>
+            </Button>
+          </motion.div>
+        ))}
+      </div>
+    </div>
   );
 }

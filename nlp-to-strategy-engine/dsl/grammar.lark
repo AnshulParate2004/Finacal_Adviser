@@ -15,7 +15,7 @@ and_rule: comparison
 // So this:
 // A OR B AND C
 // A OR (B AND C)
-//so tree 
+// so tree 
 //       OR
 //      /  \
 //    A    AND

@@ -1,2 +1,0 @@
-first it will go into parsing with llm at structural level 
-secornd pser lnguage will be coverted to DSL

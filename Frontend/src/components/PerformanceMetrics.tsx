@@ -1,117 +1,50 @@
 import { motion } from 'framer-motion';
-import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Zap, BarChart } from 'lucide-react';
-import type { PerformanceMetrics as PerformanceMetricsType } from '@/types/strategy';
-import { cn } from '@/lib/utils';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { PerformanceMetrics as MetricsType } from '@/types/strategy';
+import { Card } from '@/components/ui/card';
+import { DollarSign, Percent, TrendingDown, TrendingUp, Activity, BarChart } from 'lucide-react';
 
 interface PerformanceMetricsProps {
-  metrics: PerformanceMetricsType;
+  metrics: MetricsType;
 }
 
 export function PerformanceMetrics({ metrics }: PerformanceMetricsProps) {
-  const metricItems = [
-    {
-      label: 'Total Profit',
-      value: `$${metrics.total_profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      icon: DollarSign,
-      color: metrics.total_profit >= 0 ? 'profit' : 'loss',
-      tooltip: 'Net profit/loss from all trades',
-    },
-    {
-      label: 'Winning Trades',
-      value: metrics.winning_trades.toString(),
-      icon: TrendingUp,
-      color: 'profit',
-      tooltip: 'Number of profitable trades',
-    },
-    {
-      label: 'Losing Trades',
-      value: metrics.losing_trades.toString(),
-      icon: TrendingDown,
-      color: 'loss',
-      tooltip: 'Number of unprofitable trades',
-    },
-    {
-      label: 'Max Drawdown',
-      value: `${metrics.max_drawdown.toFixed(2)}%`,
-      icon: AlertTriangle,
-      color: 'warning',
-      tooltip: 'Maximum peak-to-trough decline in portfolio value',
-    },
-    {
-      label: 'Sharpe Ratio',
-      value: metrics.sharpe_ratio.toFixed(2),
-      icon: Zap,
-      color: metrics.sharpe_ratio >= 1 ? 'profit' : metrics.sharpe_ratio >= 0 ? 'warning' : 'loss',
-      tooltip: 'Risk-adjusted return. Above 1 is good, above 2 is excellent',
-    },
-    {
-      label: 'Avg Trade Return',
-      value: `${metrics.average_trade_return >= 0 ? '+' : ''}${metrics.average_trade_return.toFixed(2)}%`,
-      icon: BarChart,
-      color: metrics.average_trade_return >= 0 ? 'profit' : 'loss',
-      tooltip: 'Average percentage return per trade',
-    },
+  const items = [
+    { label: 'Total Profit', value: `$${metrics.total_profit.toFixed(2)}`, icon: DollarSign, color: metrics.total_profit >= 0 ? "text-success" : "text-destructive" },
+    { label: 'Winning Trades', value: metrics.winning_trades, icon: TrendingUp, color: "text-success" },
+    { label: 'Losing Trades', value: metrics.losing_trades, icon: TrendingDown, color: "text-destructive" },
+    { label: 'Max Drawdown', value: `${metrics.max_drawdown.toFixed(2)}%`, icon: Activity, color: "text-warning" },
+    { label: 'Sharpe Ratio', value: metrics.sharpe_ratio.toFixed(2), icon: BarChart, color: "text-primary" },
+    { label: 'Avg Trade', value: `${metrics.average_trade_return > 0 ? '+' : ''}${metrics.average_trade_return.toFixed(2)}%`, icon: Percent, color: metrics.average_trade_return >= 0 ? "text-success" : "text-destructive" },
   ];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
-      className="glass rounded-xl overflow-hidden"
-    >
-      <div className="px-6 py-4 border-b border-border/50">
-        <h3 className="font-semibold text-foreground">Performance Metrics</h3>
-      </div>
-      <div className="divide-y divide-border/30">
-        {metricItems.map((item, index) => (
+    <Card className="p-6 h-full glass-card overflow-hidden relative">
+      <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-32 translate-x-32" />
+
+      <h3 className="text-lg font-semibold mb-6 flex items-center gap-2 relative z-10">
+        <Activity className="w-5 h-5 text-primary" />
+        Key Performance Metrics
+      </h3>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-6 relative z-10">
+        {items.map((item, index) => (
           <motion.div
-            key={item.label}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 + index * 0.05 }}
-            className="flex items-center justify-between px-6 py-4 hover:bg-secondary/30 transition-colors"
+            key={index}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: index * 0.1 + 0.3 }}
+            className="space-y-2 p-3 rounded-xl hover:bg-white/5 transition-colors"
           >
-            <div className="flex items-center gap-3">
-              <div
-                className={cn(
-                  "p-2 rounded-lg",
-                  item.color === 'profit' && "bg-profit/10 text-profit",
-                  item.color === 'loss' && "bg-loss/10 text-loss",
-                  item.color === 'warning' && "bg-warning/10 text-warning"
-                )}
-              >
-                <item.icon className="w-4 h-4" />
-              </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-sm text-muted-foreground cursor-help">
-                    {item.label}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{item.tooltip}</p>
-                </TooltipContent>
-              </Tooltip>
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <item.icon className="w-4 h-4 opacity-70" />
+              <span>{item.label}</span>
             </div>
-            <span
-              className={cn(
-                "font-mono font-semibold",
-                item.color === 'profit' && "text-profit",
-                item.color === 'loss' && "text-loss",
-                item.color === 'warning' && "text-warning"
-              )}
-            >
+            <div className={`text-xl font-bold tracking-tight ${item.color} filter drop-shadow-sm`}>
               {item.value}
-            </span>
+            </div>
           </motion.div>
         ))}
       </div>
-    </motion.div>
+    </Card>
   );
 }
