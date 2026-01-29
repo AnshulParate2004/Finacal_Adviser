@@ -33,5 +33,5 @@ To lose money in this market, you have to fight the trend or trade randomly on n
 *   **Why it loses:** Fees and "whipsaws" (false signals) eat up your capital.
 *   **Example Prompt:**
     > "Buy when Close > Open. Sell when Close < Open."
-
+    > "Buy when close crosses above SMA(20). Sell when close crosses below SMA(20)."
 ---
