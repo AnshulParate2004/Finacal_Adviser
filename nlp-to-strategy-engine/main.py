@@ -83,7 +83,7 @@ def load_sample_data() -> pd.DataFrame:
     
     # Convert date to datetime
     df['date'] = pd.to_datetime(df['date'])
-    df = df.sort_values('date').reset_index(drop=True)
+    df = df.sort_values('date').set_index('date', drop=False)
     
     return df
 
@@ -255,7 +255,19 @@ def process_strategy_pipeline(text: str) -> Dict[str, Any]:
             "max_loss": backtest_result.max_loss,
             "initial_capital": initial_capital,
             "final_capital": initial_capital + backtest_result.total_profit,
-            "position_size": position_size
+            "position_size": position_size,
+            "data_start": str(df['date'].iloc[0]) if not df.empty else None,
+            "data_end": str(df['date'].iloc[-1]) if not df.empty else None,
+            "data_bars": len(df),
+            "trades": [{
+                "entry_date": t.entry_date,
+                "entry_price": t.entry_price,
+                "exit_date": t.exit_date,
+                "exit_price": t.exit_price,
+                "profit_loss": t.profit,
+                "profit_loss_percent": t.return_pct,
+                "type": "long"
+            } for t in backtest_result.trades]
         },
         "processing_time_ms": processing_time
     }

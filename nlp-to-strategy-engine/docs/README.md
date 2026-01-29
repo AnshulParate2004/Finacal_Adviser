@@ -1,49 +1,37 @@
-# Trading Strategy DSL - Quick Reference
+# NLP-to-Strategy Trading Engine
 
-## What is it?
-A domain-specific language for writing trading strategies in plain English-like syntax. Converts human-readable rules into executable code.
+---
+### ✅ When will you make PROFIT?
+In an uptrend, strategies that **follow the trend** or **buy the dip** will profit.
 
-## Core Syntax
+**1. Trend Following (The "Best" Strategy)**
+*   **Logic:** Buy when price goes UP. Hold while it keeps going UP.
+*   **Why it wins:** You ride the main wave of the market.
+*   **Example Prompt:**
+    > "Buy when Close crosses above SMA(50). Sell when Close crosses below SMA(50)."
 
-```
-ENTRY: <condition>
-EXIT: <condition>
-```
+**2. Mean Reversion (Buying the Dip)**
+*   **Logic:** Buy when price drops suddenly (oversold). Sell when it bounces back.
+*   **Why it wins:** In an uptrend, every drop is temporary. Buying low works perfectly.
+*   **Example Prompt:**
+    > "Buy when RSI is below 30. Sell when RSI is above 70."
 
-## Operators
-- **Compare:** `>` `<` `>=` `<=` `==` `!=`
-- **Cross:** `crosses_above` `crosses_below` `crosses` `touches`
-- **Logic:** `AND` `OR` `(parentheses)`
+---
 
-## Data
-- **Price:** `close` `open` `high` `low` `volume`
-- **Numbers:** `100` `1.5K` `2M` `1B`
-- **Time:** `close_prev` `high_5d_ago` `low_1w_ago`
+### ❌ When will you make a LOSS?
+To lose money in this market, you have to fight the trend or trade randomly on noise.
 
-## Indicators
-`sma(close, 20)` `ema(close, 12)` `rsi(close, 14)` `macd(close, 12, 26, 9)` `bb_upper(close, 20, 2)` `atr(14)` `adx(14)` `stoch(14, 3, 3, 3)`
+**1. Fighting the Trend (The "Worst" Strategy)**
+*   **Logic:** Buy when price is skyrocketing (hoping it crashes?) or Sell when it's just starting to rise.
+*   **Why it loses:** You are betting against the market momentum.
+*   **Example Prompt (Loss Generator):**
+    > "Buy when Close crosses below SMA(20). Sell when Close crosses above SMA(20)."
+    *   *Analysis:* You buy when it starts falling. You sell when it starts recovering. You capture all the red, none of the green.
 
-## Example
+**2. Trading on Noise**
+*   **Logic:** Using very short-term signals that flicker constantly.
+*   **Why it loses:** Fees and "whipsaws" (false signals) eat up your capital.
+*   **Example Prompt:**
+    > "Buy when Close > Open. Sell when Close < Open."
 
-```
-ENTRY: sma(close, 20) crosses_above sma(close, 50) AND rsi(close, 14) < 40
-EXIT: close crosses_below sma(close, 20) OR rsi(close, 14) > 70
-```
-
-## Files
-- `DSL_SPECIFICATION.md` - Full grammar & syntax
-- `EXAMPLES.md` - Usage examples
-- `ASSUMPTIONS.md` - Design decisions
-- `grammar.lark` - Parser grammar
-- `ast_nodes.py` - AST structure
-- `parser.py` - Text → AST converter
-- `validator.py` - Validation & quality checks
-
-## Usage
-
-```python
-from dsl import parse_dsl, validate_dsl
-
-ast = parse_dsl("ENTRY: close > sma(close, 20)")
-is_valid, errors, warnings = validate_dsl(ast)
-```
+---
