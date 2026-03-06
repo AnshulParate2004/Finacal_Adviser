@@ -63,9 +63,14 @@ class StrategyResponse(BaseModel):
 # Helper Functions
 # ============================================================================
 
+def _get_data_dir() -> str:
+    """Base data directory path"""
+    return os.path.join(os.path.dirname(__file__), "data")
+
+
 def load_sample_data() -> pd.DataFrame:
     """Load sample OHLCV data for backtesting"""
-    data_path = os.path.join(os.path.dirname(__file__), "data", "sample_data.csv")
+    data_path = os.path.join(_get_data_dir(), "sample_data.csv")
     
     if not os.path.exists(data_path):
         raise FileNotFoundError(
@@ -73,20 +78,67 @@ def load_sample_data() -> pd.DataFrame:
             "Please ensure data/sample_data.csv exists."
         )
     
-    df = pd.read_csv(data_path)
-    
-    # Ensure required columns exist
+    return _load_ohlcv_csv(data_path)
+
+
+def _load_ohlcv_csv(path: str) -> pd.DataFrame:
+    """Load and normalize OHLCV CSV (Date/Open/High/Low/Close/Volume)."""
+    df = pd.read_csv(path)
+    df.columns = df.columns.str.strip().str.lower()
     required_cols = ['date', 'open', 'high', 'low', 'close', 'volume']
-    missing_cols = [col for col in required_cols if col not in df.columns]
-    
+    missing_cols = [c for c in required_cols if c not in df.columns]
     if missing_cols:
-        raise ValueError(f"Sample data missing required columns: {missing_cols}")
-    
-    # Convert date to datetime (handles DD-MM-YYYY and YYYY-MM-DD)
+        raise ValueError(f"Data missing required columns: {missing_cols}")
     df['date'] = pd.to_datetime(df['date'], format='mixed', dayfirst=True)
     df = df.sort_values('date').set_index('date', drop=False)
-    
     return df
+
+
+def load_data_for_symbol(symbol: str, is_etf: bool) -> pd.DataFrame:
+    """
+    Load OHLCV data for the selected symbol only.
+    Looks in data/archive/stocks/{symbol}.csv or data/archive/etfs/{symbol}.csv.
+    Does NOT fall back to sample_data - uses only the selected symbol's file.
+    """
+    subdir = "etfs" if is_etf else "stocks"
+    symbol_path = os.path.join(_get_data_dir(), "archive", subdir, f"{symbol.upper()}.csv")
+    if not os.path.exists(symbol_path):
+        raise FileNotFoundError(
+            f"Data file not found for symbol {symbol}. "
+            f"Please add archive/{subdir}/{symbol.upper()}.csv with columns: Date, Open, High, Low, Close, Volume."
+        )
+    return _load_ohlcv_csv(symbol_path)
+
+
+def get_symbols_list(symbol_type: Optional[str] = None) -> list:
+    """
+    Load symbols from symbols_valid_meta.csv.
+    symbol_type: 'stock' | 'etf' | None (all)
+    - When symbol_type='etf': only rows where ETF column is 'Y' are returned.
+    - When symbol_type='stock': only rows where ETF column is 'N' are returned.
+    Returns list of {symbol, security_name, type: 'stock'|'etf'}
+    """
+    path = os.path.join(_get_data_dir(), "archive", "symbols_valid_meta.csv")
+    if not os.path.exists(path):
+        return []
+    df = pd.read_csv(path)
+    df.columns = df.columns.str.strip()
+    if 'Symbol' not in df.columns or 'Security Name' not in df.columns or 'ETF' not in df.columns:
+        return []
+    rows = []
+    for _, r in df.iterrows():
+        # ETF column: only 'Y' is treated as ETF; everything else is stock
+        etf_val = str(r.get('ETF', 'N')).strip().upper()
+        is_etf = etf_val == 'Y'
+        typ = 'etf' if is_etf else 'stock'
+        if symbol_type and symbol_type != typ:
+            continue
+        rows.append({
+            "symbol": str(r['Symbol']).strip(),
+            "security_name": str(r.get('Security Name', '')).strip(),
+            "type": typ,
+        })
+    return rows
 
 
 def _dsl_safe_value(val: Any) -> str:
@@ -136,17 +188,18 @@ def convert_rule_to_dsl(parsed_strategy: ParsedStrategy) -> str:
     return "\n".join(dsl_lines)
 
 
-def process_strategy_pipeline(text: str) -> Dict[str, Any]:
+def process_strategy_pipeline(
+    text: str,
+    symbol: Optional[str] = None,
+    symbol_type: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Complete pipeline: NLP → DSL → AST → Code → Backtest
     
-    The NLP parser extracts everything from the text:
-    - Entry/exit conditions
-    - Initial capital (if mentioned, defaults to 10000)
-    - Position size (if mentioned, defaults to 1.0)
-    
     Args:
         text: Natural language trading rule
+        symbol: Optional ticker (e.g. AAPL). Loads data/stocks/{symbol}.csv or data/etfs/{symbol}.csv
+        symbol_type: 'stock' | 'etf' when symbol is provided
         
     Returns:
         Dictionary with complete results
@@ -211,7 +264,11 @@ def process_strategy_pipeline(text: str) -> Dict[str, Any]:
     
     # Step 6: Load data and run backtest
     try:
-        df = load_sample_data()
+        if symbol and symbol.strip():
+            is_etf = (symbol_type or "stock").lower() == "etf"
+            df = load_data_for_symbol(symbol.strip(), is_etf)
+        else:
+            df = load_sample_data()
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -244,7 +301,9 @@ def process_strategy_pipeline(text: str) -> Dict[str, Any]:
             "dsl_code": dsl_code,
             "ast_tree": ast.to_dict(),
             "extracted_capital": initial_capital,
-            "extracted_position_size": position_size
+            "extracted_position_size": position_size,
+            "symbol": symbol or None,
+            "symbol_type": symbol_type or None,
         },
         "signals": {
             "entry_count": len([t for t in backtest_result.trades if t.entry_date]),
@@ -312,9 +371,21 @@ async def health_check():
     )
 
 
+@app.get("/api/symbols", tags=["Symbols"])
+async def get_symbols(type: Optional[str] = None):
+    """
+    List symbols from symbols_valid_meta.csv.
+    type: 'stock' | 'etf' | omit for all. Returns {symbol, security_name, type}.
+    """
+    symbols = get_symbols_list(symbol_type=type)
+    return {"symbols": symbols, "count": len(symbols)}
+
+
 @app.post("/api/strategy", response_model=StrategyResponse, tags=["Strategy"])
 async def process_strategy(
-    text: str = Form(..., description="Natural language trading rule with optional capital and position size")
+    text: str = Form(..., description="Natural language trading rule"),
+    symbol: Optional[str] = Form(None, description="Ticker symbol (e.g. AAPL)"),
+    symbol_type: Optional[str] = Form(None, description="'stock' or 'etf' when symbol is set"),
 ):
     """
     Main endpoint: Convert natural language to strategy and backtest.
@@ -351,8 +422,7 @@ async def process_strategy(
       - Backtest performance metrics
     """
     try:
-        # Process the strategy - NLP parser handles capital/position extraction
-        result = process_strategy_pipeline(text)
+        result = process_strategy_pipeline(text, symbol=symbol, symbol_type=symbol_type)
         
         return StrategyResponse(
             success=True,

@@ -57,6 +57,9 @@ export interface BacktestResult {
   data_start_date: string;
   data_end_date: string;
   data_bars: number;
+  /** Symbol used for backtest (e.g. AAPL) or null for sample data */
+  symbol?: string | null;
+  symbol_type?: 'stock' | 'etf' | null;
 }
 
 export interface ExampleStrategy {

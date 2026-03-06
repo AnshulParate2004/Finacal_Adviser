@@ -52,3 +52,6 @@ pip-wheel-metadata/
 # If you create any local generated files, add them here:
 local_data/
 tmp/
+
+# ---- Data (do not push to GitHub) ----
+nlp-to-strategy-engine/data/

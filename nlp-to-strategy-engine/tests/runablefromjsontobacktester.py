@@ -30,6 +30,7 @@ class JsonToBacktester:
         """Load OHLCV data from CSV (handles DD-MM-YYYY and YYYY-MM-DD)"""
         try:
             self.data = pd.read_csv(csv_path)
+            self.data.columns = self.data.columns.str.strip().str.lower()
             self.data['date'] = pd.to_datetime(self.data['date'], format='mixed', dayfirst=True)
             self.data = self.data.set_index('date')
             # Convert all numeric columns to float64 (required by TA-Lib)

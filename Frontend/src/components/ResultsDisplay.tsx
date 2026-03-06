@@ -67,6 +67,8 @@ export function ResultsDisplay({ result, onReset }: ResultsDisplayProps) {
         startDate={result.data_start_date}
         endDate={result.data_end_date}
         dataBars={result.data_bars}
+        symbol={result.symbol}
+        symbolType={result.symbol_type}
       />
     </motion.div>
   );

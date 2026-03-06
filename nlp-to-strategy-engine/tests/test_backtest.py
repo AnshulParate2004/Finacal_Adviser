@@ -18,6 +18,7 @@ def load_sample_data() -> pd.DataFrame:
     """Load sample OHLCV data (handles DD-MM-YYYY and YYYY-MM-DD)"""
     data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'sample_data.csv')
     df = pd.read_csv(data_path)
+    df.columns = df.columns.str.strip().str.lower()
     df['date'] = pd.to_datetime(df['date'], format='mixed', dayfirst=True)
     df = df.set_index('date')
     return df

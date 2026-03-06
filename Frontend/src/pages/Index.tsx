@@ -67,9 +67,13 @@ const Index = () => {
     }
   };
 
-  const runStrategyAnalysis = async (text: string) => {
+  const runStrategyAnalysis = async (text: string, symbol: { symbol: string; type: string } | null) => {
     const formData = new FormData();
     formData.append('text', text);
+    if (symbol) {
+      formData.append('symbol', symbol.symbol);
+      formData.append('symbol_type', symbol.type);
+    }
 
     const response = await fetch(API_URL, {
       method: 'POST',
@@ -90,7 +94,7 @@ const Index = () => {
     return apiResponse;
   };
 
-  const handleSubmit = async (text: string) => {
+  const handleSubmit = async (text: string, symbol: { symbol: string; type: string } | null) => {
     setViewState('loading');
     setError('');
     setCompletenessError(null);
@@ -108,7 +112,7 @@ const Index = () => {
         return;
       }
 
-      const apiResponse = await runStrategyAnalysis(text);
+      const apiResponse = await runStrategyAnalysis(text, symbol);
 
       const backtest = apiResponse.data.backtest;
       const input = apiResponse.data.input;
@@ -150,6 +154,8 @@ const Index = () => {
         data_start_date: backtest.data_start || '',
         data_end_date: backtest.data_end || '',
         data_bars: backtest.data_bars || 0,
+        symbol: input.symbol || null,
+        symbol_type: input.symbol_type || null,
       };
 
       setResult(transformedResult);

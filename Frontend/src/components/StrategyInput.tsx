@@ -3,6 +3,7 @@ import { Sparkles, Send, AlertCircle, TrendingUp, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { SymbolSelector, type SymbolItem } from './SymbolSelector';
 
 interface CompletenessError {
   missing_elements: string[];
@@ -10,7 +11,7 @@ interface CompletenessError {
 }
 
 interface StrategyInputProps {
-  onSubmit: (text: string) => void;
+  onSubmit: (text: string, symbol: SymbolItem | null) => void;
   isLoading: boolean;
   strategyText: string;
   onTextChange: (text: string) => void;
@@ -19,10 +20,11 @@ interface StrategyInputProps {
 
 export function StrategyInput({ onSubmit, isLoading, strategyText, onTextChange, completenessError }: StrategyInputProps) {
   const [isFocused, setIsFocused] = useState(false);
+  const [selectedSymbol, setSelectedSymbol] = useState<SymbolItem | null>(null);
 
   const handleSubmit = () => {
     if (strategyText.trim()) {
-      onSubmit(strategyText);
+      onSubmit(strategyText, selectedSymbol);
     }
   };
 
@@ -34,8 +36,8 @@ export function StrategyInput({ onSubmit, isLoading, strategyText, onTextChange,
       className="relative z-10"
     >
       <div className="glass-card rounded-2xl p-8 space-y-8 relative overflow-hidden group">
-        {/* Animated Background Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+        {/* Animated Background Gradient - pointer-events-none so buttons remain clickable */}
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
         {/* Header */}
         <div className="text-center space-y-4 relative z-10">
@@ -102,6 +104,13 @@ export function StrategyInput({ onSubmit, isLoading, strategyText, onTextChange,
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Symbol Selector */}
+        <SymbolSelector
+          value={selectedSymbol}
+          onChange={setSelectedSymbol}
+          disabled={isLoading}
+        />
 
         {/* Strategy Input */}
         <div className="space-y-4 relative group/input">
