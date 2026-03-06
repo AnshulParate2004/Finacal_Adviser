@@ -10,7 +10,7 @@ class ValidationError(Exception):
 
 class DSLValidator:
     "This is the core validator that checks the DSL code for correctness."
-    VALID_SERIES = {'close', 'open', 'high', 'low', 'volume'}
+    VALID_SERIES = {'close', 'open', 'high', 'low', 'volume', 'entry_price', 'price'}
     VALID_INDICATORS = {
         'sma': (2, 2), 
         'ema': (2, 2), 

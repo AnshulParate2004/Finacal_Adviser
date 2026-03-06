@@ -52,8 +52,9 @@ def run_complete_demo():
     
     print_section("STEP 0: Load Market Data")
     try:
-        data = pd.read_csv(data_path, index_col='date', parse_dates=True)
-        
+        data = pd.read_csv(data_path)
+        data['date'] = pd.to_datetime(data['date'], format='mixed', dayfirst=True)
+        data = data.set_index('date')
         # Convert to float64 for TA-Lib
         numeric_columns = ['open', 'high', 'low', 'close', 'volume']
         for col in numeric_columns:
@@ -174,7 +175,9 @@ def run_interactive_demo():
     data_path = Path(__file__).parent.parent / 'data' / 'sample_data.csv'
     
     try:
-        data = pd.read_csv(data_path, index_col='date', parse_dates=True)
+        data = pd.read_csv(data_path)
+        data['date'] = pd.to_datetime(data['date'], format='mixed', dayfirst=True)
+        data = data.set_index('date')
         numeric_columns = ['open', 'high', 'low', 'close', 'volume']
         for col in numeric_columns:
             if col in data.columns:

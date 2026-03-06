@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dsl.ast_nodes import (
     ASTNode, Strategy, Series, Number, Indicator, TimeReference,
-    Comparison, BooleanOp
+    Scale, Comparison, BooleanOp
 )
 
 
@@ -256,15 +256,27 @@ class CodeGenerator:
             return self._evaluate_indicator(expr)
         elif isinstance(expr, TimeReference):
             return self._evaluate_time_ref(expr)
+        elif isinstance(expr, Scale):
+            return self._evaluate_scale(expr)
         else:
             raise ValueError(f"Unknown expression type: {type(expr)}")
     
     def _evaluate_series(self, node: Series) -> pd.Series:
         """Get series from DataFrame"""
-        if node.name not in self.df.columns:
+        if node.name == "entry_price" and "entry_price" not in self.df.columns:
+            # Backtester will fill entry_price on second pass; use NaN so exit condition does not fire
+            return pd.Series(np.nan, index=self.df.index)
+        # "price" is alias for "close"
+        name = "close" if node.name == "price" else node.name
+        if name not in self.df.columns:
             raise ValueError(f"Column not found: {node.name}")
-        return self.df[node.name]
+        return self.df[name]
     
+    def _evaluate_scale(self, node: Scale) -> pd.Series:
+        """Evaluate series * number (e.g. entry_price * 0.98 for stop-loss)."""
+        series = self._evaluate_expression(node.series)
+        return series * node.multiplier
+
     def _evaluate_number(self, node: Number) -> pd.Series:
         """Create constant Series from number"""
         return pd.Series(node.value, index=self.df.index)

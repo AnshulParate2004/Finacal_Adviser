@@ -3,6 +3,7 @@ FastAPI server for NLP-to-Strategy Trading Engine
 Converts natural language trading rules to executable strategies with backtesting
 """
 import os
+import re
 import time
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -81,11 +82,20 @@ def load_sample_data() -> pd.DataFrame:
     if missing_cols:
         raise ValueError(f"Sample data missing required columns: {missing_cols}")
     
-    # Convert date to datetime
-    df['date'] = pd.to_datetime(df['date'])
+    # Convert date to datetime (handles DD-MM-YYYY and YYYY-MM-DD)
+    df['date'] = pd.to_datetime(df['date'], format='mixed', dayfirst=True)
     df = df.sort_values('date').set_index('date', drop=False)
     
     return df
+
+
+def _dsl_safe_value(val: Any) -> str:
+    """Convert condition value to DSL string; use 'entry_price' not 'entry' to avoid ENTRY keyword."""
+    s = str(val).strip()
+    # Replace word 'entry' (entry price) with 'entry_price' so parser does not treat it as ENTRY keyword
+    if s == "entry" or (s.startswith("entry") and not s.startswith("entry_price")):
+        s = s.replace("entry", "entry_price", 1)
+    return s
 
 
 def convert_rule_to_dsl(parsed_strategy: ParsedStrategy) -> str:
@@ -101,26 +111,24 @@ def convert_rule_to_dsl(parsed_strategy: ParsedStrategy) -> str:
     rule = parsed_strategy.rule
     dsl_lines = []
     
+    def dsl_cond(c):
+        left = _dsl_safe_value(c.left)
+        right = _dsl_safe_value(c.right)
+        # Normalize "entry" in expressions (e.g. "entry * 0.98") so it parses as entry_price
+        left = re.sub(r"\bentry\b", "entry_price", left)
+        right = re.sub(r"\bentry\b", "entry_price", right)
+        return f"{left} {c.operator} {right}"
+    
     # Build entry rule
     if rule.entry:
-        entry_conditions = []
-        for condition in rule.entry:
-            entry_conditions.append(
-                f"{condition.left} {condition.operator} {condition.right}"
-            )
-        
+        entry_conditions = [dsl_cond(c) for c in rule.entry]
         logic_op = " AND " if rule.logic == "AND" else " OR "
         entry_rule = logic_op.join(entry_conditions)
         dsl_lines.append(f"ENTRY: {entry_rule}")
     
     # Build exit rule
     if rule.exit:
-        exit_conditions = []
-        for condition in rule.exit:
-            exit_conditions.append(
-                f"{condition.left} {condition.operator} {condition.right}"
-            )
-        
+        exit_conditions = [dsl_cond(c) for c in rule.exit]
         logic_op = " AND " if rule.logic == "AND" else " OR "
         exit_rule = logic_op.join(exit_conditions)
         dsl_lines.append(f"EXIT: {exit_rule}")
@@ -234,6 +242,7 @@ def process_strategy_pipeline(text: str) -> Dict[str, Any]:
             "indicators_used": parsed_strategy.indicators_used,
             "complexity": parsed_strategy.complexity,
             "dsl_code": dsl_code,
+            "ast_tree": ast.to_dict(),
             "extracted_capital": initial_capital,
             "extracted_position_size": position_size
         },

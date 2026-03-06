@@ -4,6 +4,7 @@ import type { BacktestResult } from '@/types/strategy';
 import { SummaryCards } from './SummaryCards';
 import { PerformanceMetrics } from './PerformanceMetrics';
 import { StrategyDetails } from './StrategyDetails';
+import { DslAstView } from './DslAstView';
 import { TradeHistory } from './TradeHistory';
 import { DataPeriodInfo } from './DataPeriodInfo';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,12 @@ export function ResultsDisplay({ result, onReset }: ResultsDisplayProps) {
         totalReturn={result.total_return}
         winRate={result.win_rate}
         totalTrades={result.total_trades}
+      />
+
+      {/* DSL & AST visualization */}
+      <DslAstView
+        dslCode={result.strategy_details.dsl_code}
+        astTree={result.strategy_details.ast_tree}
       />
 
       {/* Metrics and Details Grid */}

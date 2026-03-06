@@ -8,12 +8,34 @@ export interface Trade {
   type: 'long' | 'short';
 }
 
+/** AST node for tree visualization (recursive). Backend may send type or node_type. */
+export interface ASTNodeTree {
+  type?: string;
+  node_type?: string;
+  operator?: string;
+  name?: string;
+  value?: number;
+  params?: (string | number)[];
+  /** time_reference: series name; scale: nested AST node */
+  series?: string | ASTNodeTree;
+  lag?: string;
+  multiplier?: number;
+  left?: ASTNodeTree;
+  right?: ASTNodeTree;
+  entry?: ASTNodeTree;
+  exit?: ASTNodeTree;
+}
+
 export interface StrategyDetails {
   original_text: string;
   indicators: string[];
   entry_conditions: string[];
   exit_conditions: string[];
   complexity: 'simple' | 'medium' | 'complex';
+  /** Generated DSL code (ENTRY: ... EXIT: ...) */
+  dsl_code?: string;
+  /** Parsed AST tree for visualization */
+  ast_tree?: ASTNodeTree;
 }
 
 export interface PerformanceMetrics {

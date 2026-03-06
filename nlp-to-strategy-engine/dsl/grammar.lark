@@ -29,6 +29,8 @@ expr: series // close, open, high, low, volume
     | indicator 
     | time_ref 
     | number 
+    | series "*" number -> scale_series
+    | number "*" series -> scale_series
     | "(" or_rule ")" // (close > open AND volume > 1000)
 
 series: SERIES_LITERAL
@@ -54,7 +56,7 @@ comparison_op: GT | LT | GTE | LTE | EQ | NEQ
 // Terminals
 INDICATOR_NAME: /sma|ema|rsi|macd|macd_signal|macd_histogram|bb_upper|bb_middle|bb_lower|atr|adx|stoch|stoch_d/i
 
-SERIES_LITERAL: "close" | "open" | "high" | "low" | "volume"
+SERIES_LITERAL: "close" | "open" | "high" | "low" | "volume" | "entry_price" | "price"
 
 TIME_LAG: ("prev" | /\d+[dwm]_ago/)
 

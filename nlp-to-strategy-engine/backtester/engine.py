@@ -140,10 +140,28 @@ class BacktestEngine:
                 f"got {type(strategy)}"
             )
         
-        # Evaluate signals using the trading function
+        # Evaluate signals (first pass; entry_price may be missing → NaN in codegen)
         self.signals = trading_func(self.df)
         entry_signals = self.signals['entry'].astype(bool)
         exit_signals = self.signals['exit'].astype(bool)
+        
+        # Two-pass when strategy uses entry_price: build series from positions, then re-run
+        if "entry_price" not in self.df.columns:
+            entry_price_series = np.full(len(self.df), np.nan, dtype=float)
+            in_pos = False
+            entry_idx = -1
+            for i in range(len(self.df)):
+                if not in_pos and entry_signals.iloc[i]:
+                    entry_idx = i
+                    in_pos = True
+                if in_pos:
+                    entry_price_series[i] = float(self.df["close"].iloc[entry_idx])
+                if in_pos and exit_signals.iloc[i]:
+                    in_pos = False
+            self.df = self.df.copy()
+            self.df["entry_price"] = entry_price_series
+            self.signals = trading_func(self.df)
+            exit_signals = self.signals["exit"].astype(bool)
         
         # Execute trades
         self.trades = []

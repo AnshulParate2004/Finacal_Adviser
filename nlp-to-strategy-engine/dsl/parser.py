@@ -10,8 +10,8 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dsl.ast_nodes import (
-    ASTNode, Strategy, Series, Number, Indicator, TimeReference, 
-    Comparison, BooleanOp, ASTBuilder
+    ASTNode, Strategy, Series, Number, Indicator, TimeReference,
+    Scale, Comparison, BooleanOp, ASTBuilder
 )
 
 
@@ -103,6 +103,16 @@ class DSLTransformer(Transformer):
         lag = items[1].value if isinstance(items[1], Token) else items[1]
         return ASTBuilder.build_time_ref(series, lag)
     
+    def scale_series(self, items):
+        """Transform series * number or number * series (e.g. entry_price * 0.98)"""
+        left, right = items[0], items[1]  # Lark passes two children (series, number or number, series)
+        if isinstance(left, Series):
+            mult = right.value if isinstance(right, Number) else float(right)
+            return ASTBuilder.build_scale(left, mult)
+        # number * series
+        mult = left.value if isinstance(left, Number) else float(left)
+        return ASTBuilder.build_scale(right, mult)
+
     def number(self, items):
         """Parse NUMBER_SCALED and apply scale"""
         token = items[0]

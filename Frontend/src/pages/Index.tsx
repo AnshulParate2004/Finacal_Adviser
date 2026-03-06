@@ -135,6 +135,8 @@ const Index = () => {
             `${c.left} ${c.operator} ${c.right}`
           ) || [],
           complexity: input.complexity as 'simple' | 'medium' | 'complex',
+          dsl_code: input.dsl_code,
+          ast_tree: input.ast_tree,
         },
         trades: backtest.trades?.map((t: any) => ({
           entry_date: t.entry_date,

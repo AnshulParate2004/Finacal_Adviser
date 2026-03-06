@@ -12,6 +12,7 @@ class NodeType(Enum):
     INDICATOR = "indicator"
     TIME_REF = "time_reference"
     NUMBER = "number"
+    SCALE = "scale"
 
 
 @dataclass
@@ -83,6 +84,21 @@ class Comparison(ASTNode):
 
 
 @dataclass
+class Scale(ASTNode):
+    """Series scaled by a number (e.g. entry_price * 0.98 for stop-loss)."""
+    node_type: str = field(default="scale", init=False)
+    series: ASTNode = None
+    multiplier: Union[int, float] = 1.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "type": self.node_type,
+            "series": self.series.to_dict() if hasattr(self.series, "to_dict") else None,
+            "multiplier": self.multiplier,
+        }
+
+
+@dataclass
 class BooleanOp(ASTNode):
     "Represents: Comparison expressions, e.g., close > sma(close, 20)."
     node_type: str = field(default="boolean_op", init=False)
@@ -136,3 +152,6 @@ class ASTBuilder:
     @staticmethod
     def build_strategy(entry: ASTNode, exit: Optional[ASTNode] = None) -> Strategy:
         return Strategy(entry=entry, exit=exit)
+    @staticmethod
+    def build_scale(series: ASTNode, multiplier: Union[int, float]) -> Scale:
+        return Scale(series=series, multiplier=multiplier)
