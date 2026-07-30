@@ -2,6 +2,10 @@
 
 **Finacal Adviser** is an advanced AI-powered trading strategy generator. It converts natural language trading rules into executable, backtested strategies with a beautiful, interactive dashboard.
 
+## Live Demo & Links
+
+- **Website/Live Demo:** [https://finacal-adviser.vercel.app/](https://finacal-adviser.vercel.app/)
+- **Source Code (GitHub):** [https://github.com/AnshulParate2004/Finacal_Adviser](https://github.com/AnshulParate2004/Finacal_Adviser)
 
 ## Process Flow
 
